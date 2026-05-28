@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/app_config.dart';
 import '../../../../core/widgets/app_panel.dart';
 import '../../../../shared/models/operations_models.dart';
+import '../../../../shared/repositories/trips_repository.dart';
 import '../../../trips/presentation/controllers/trips_controller.dart';
 
 class DocumentsScreen extends ConsumerWidget {
@@ -55,6 +58,10 @@ class DocumentsScreen extends ConsumerWidget {
                 Text('${trip.customerName} · ${trip.driverName} · ${trip.vehiclePlate}'),
                 const SizedBox(height: 6),
                 Text('Файл ТТН: ${trip.ttnPhotoName}'),
+                if (trip.ttnDocumentPath != null) ...[
+                  const SizedBox(height: 6),
+                  Text('Storage: ${trip.ttnDocumentPath}'),
+                ],
                 const SizedBox(height: 6),
                 Text('Доп. фото: ${trip.supportingPhotosCount} · создано: ${trip.createdAtLabel}'),
                 const SizedBox(height: 12),
@@ -66,6 +73,11 @@ class DocumentsScreen extends ConsumerWidget {
                       onPressed: () => _showDocumentDetails(context, trip),
                       icon: const Icon(Icons.visibility_rounded),
                       label: const Text('Открыть карточку'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () => _openTtnFile(context, ref, trip),
+                      icon: const Icon(Icons.open_in_new_rounded),
+                      label: const Text('Открыть файл'),
                     ),
                   ],
                 ),
@@ -91,6 +103,7 @@ class DocumentsScreen extends ConsumerWidget {
             Text('Водитель: ${trip.driverName}'),
             Text('Машина: ${trip.vehiclePlate}'),
             Text('Файл: ${trip.ttnPhotoName}'),
+            Text('Storage path: ${trip.ttnDocumentPath ?? 'нет в dev-режиме'}'),
             Text('OCR: ${trip.ocrStatusLabel}'),
             const SizedBox(height: 12),
             const Text('В dev-режиме доступна карточка документа. В Supabase-контуре файл хранится в Storage, метаданные — в таблице documents.'),
@@ -104,5 +117,34 @@ class DocumentsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _openTtnFile(BuildContext context, WidgetRef ref, TripReportSummary trip) async {
+    if (!AppConfig.isSupabaseConfigured) {
+      _showMessage(context, 'В dev-режиме файл не загружается в Storage. Доступна только карточка документа.');
+      return;
+    }
+
+    final filePath = trip.ttnDocumentPath;
+    if (filePath == null || filePath.isEmpty) {
+      _showMessage(context, 'У этого рейса пока нет пути к файлу ТТН в Storage.');
+      return;
+    }
+
+    try {
+      final url = await ref.read(tripsRepositoryProvider).createTtnDocumentUrl(filePath);
+      final uri = Uri.parse(url);
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && context.mounted) {
+        _showMessage(context, 'Не удалось открыть файл ТТН.');
+      }
+    } catch (error) {
+      if (!context.mounted) return;
+      _showMessage(context, 'Не удалось получить ссылку на файл ТТН: $error');
+    }
+  }
+
+  void _showMessage(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 }

@@ -186,6 +186,7 @@ class TripReportSummary {
     required this.statusLabel,
     required this.ocrStatusLabel,
     required this.ttnPhotoName,
+    this.ttnDocumentPath,
     required this.supportingPhotosCount,
     required this.createdAtLabel,
     required this.createdAt,
@@ -203,6 +204,7 @@ class TripReportSummary {
   final String statusLabel;
   final String ocrStatusLabel;
   final String ttnPhotoName;
+  final String? ttnDocumentPath;
   final int supportingPhotosCount;
   final String createdAtLabel;
   final DateTime createdAt;

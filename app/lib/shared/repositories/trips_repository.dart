@@ -21,6 +21,8 @@ abstract class TripsRepository {
   Future<List<TripReportSummary>> fetchDriverTrips(String driverId);
 
   Future<TripReportSummary> createTrip(TripWriteRequest request);
+
+  Future<String> createTtnDocumentUrl(String filePath);
 }
 
 class TripWriteRequest {
@@ -84,6 +86,11 @@ class UnsupportedTripsRepository implements TripsRepository {
   Future<TripReportSummary> createTrip(TripWriteRequest request) async {
     throw UnsupportedError('Supabase не настроен. Сейчас используется локальный dev-контур.');
   }
+
+  @override
+  Future<String> createTtnDocumentUrl(String filePath) async {
+    throw UnsupportedError('Supabase не настроен. Сейчас используется локальный dev-контур.');
+  }
 }
 
 class SupabaseTripsRepository implements TripsRepository {
@@ -109,13 +116,13 @@ class SupabaseTripsRepository implements TripsRepository {
   @override
   Future<List<TripReportSummary>> fetchAdminTrips() async {
     final rows = await _client.from('trips').select(_select).order('created_at', ascending: false);
-    return rows.map(_mapTrip).toList(growable: false);
+    return _attachTtnDocuments(rows.map(_mapTrip).toList(growable: false));
   }
 
   @override
   Future<List<TripReportSummary>> fetchDriverTrips(String driverId) async {
     final rows = await _client.from('trips').select(_select).eq('driver_id', driverId).order('created_at', ascending: false);
-    return rows.map(_mapTrip).toList(growable: false);
+    return _attachTtnDocuments(rows.map(_mapTrip).toList(growable: false));
   }
 
   @override
@@ -126,13 +133,20 @@ class SupabaseTripsRepository implements TripsRepository {
     await _createTtnDocument(tripId: trip.id, filePath: filePath, request: request);
     return trip.copyWithDocumentInfo(
       ttnPhotoName: request.ttnPhotoName.trim(),
+      ttnDocumentPath: filePath,
       supportingPhotosCount: request.supportingPhotosCount,
     );
   }
 
+  @override
+  Future<String> createTtnDocumentUrl(String filePath) async {
+    return _client.storage.from('documents').createSignedUrl(filePath, 60 * 10);
+  }
+
   Future<String> _uploadTtnPhoto({required String tripId, required TripWriteRequest request}) async {
     final fileName = request.ttnPhotoName.trim();
-    final filePath = '${request.driverId}/trips/$tripId/$fileName';
+    final safeFileName = fileName.replaceAll(RegExp(r'[^A-Za-zА-Яа-я0-9._-]+'), '_');
+    final filePath = 'trips/$tripId/ttn/${DateTime.now().millisecondsSinceEpoch}_$safeFileName';
     final bytes = request.ttnPhotoBytes;
 
     if (fileName.isNotEmpty && bytes != null && bytes.isNotEmpty) {
@@ -190,10 +204,39 @@ class SupabaseTripsRepository implements TripsRepository {
       statusLabel: _mapTripStatus(row['status'] as String?),
       ocrStatusLabel: _mapOcrStatus(row['ocr_status'] as String?),
       ttnPhotoName: 'Файл в Storage',
+      ttnDocumentPath: null,
       supportingPhotosCount: 0,
       createdAtLabel: _formatCreatedAt(createdAt),
       createdAt: createdAt,
     );
+  }
+
+  Future<List<TripReportSummary>> _attachTtnDocuments(List<TripReportSummary> trips) async {
+    if (trips.isEmpty) return trips;
+
+    final tripIds = trips.map((item) => item.id).toList(growable: false);
+    final rows = await _client
+        .from('documents')
+        .select('entity_id, file_path, file_name, metadata_json')
+        .eq('entity_type', 'trip')
+        .eq('document_type', 'ttn')
+        .inFilter('entity_id', tripIds);
+
+    final docsByTripId = <String, Map<String, dynamic>>{};
+    for (final row in rows) {
+      docsByTripId[row['entity_id'] as String] = row;
+    }
+
+    return trips.map((trip) {
+      final doc = docsByTripId[trip.id];
+      if (doc == null) return trip;
+      final metadata = doc['metadata_json'] as Map<String, dynamic>?;
+      return trip.copyWithDocumentInfo(
+        ttnPhotoName: doc['file_name'] as String? ?? trip.ttnPhotoName,
+        ttnDocumentPath: doc['file_path'] as String?,
+        supportingPhotosCount: metadata?['supporting_photos_count'] as int? ?? trip.supportingPhotosCount,
+      );
+    }).toList(growable: false);
   }
 }
 
@@ -271,6 +314,7 @@ String _guessMimeType(String fileName) {
 extension on TripReportSummary {
   TripReportSummary copyWithDocumentInfo({
     required String ttnPhotoName,
+    String? ttnDocumentPath,
     required int supportingPhotosCount,
   }) {
     return TripReportSummary(
@@ -286,6 +330,7 @@ extension on TripReportSummary {
       statusLabel: statusLabel,
       ocrStatusLabel: ocrStatusLabel,
       ttnPhotoName: ttnPhotoName.isEmpty ? this.ttnPhotoName : ttnPhotoName,
+      ttnDocumentPath: ttnDocumentPath ?? this.ttnDocumentPath,
       supportingPhotosCount: supportingPhotosCount,
       createdAtLabel: createdAtLabel,
       createdAt: createdAt,
