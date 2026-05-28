@@ -114,6 +114,24 @@
 - проверку RLS;
 - UX-проверку первого рабочего сценария.
 
+### 10.1. Supabase integration runbook
+- [docs/09_supabase_integration_runbook.md](/c:/Users/95/Desktop/KAA%2086/docs/09_supabase_integration_runbook.md)
+
+Содержит:
+- порядок применения миграций и seed;
+- запуск Flutter с `--dart-define`;
+- ручной сценарий проверки релиза 0.1;
+- RLS smoke-checks и типовые блокеры.
+
+### 10.2. Данные и доступы от владельца проекта
+- [docs/10_required_user_inputs.md](/c:/Users/95/Desktop/KAA%2086/docs/10_required_user_inputs.md)
+
+Содержит:
+- какие Supabase URL/key нужны для интеграции;
+- какие тестовые Auth-пользователи нужны;
+- какие UUID нужно подставить в seed и RLS-проверки;
+- какие бизнес-данные нужны для ручной проверки первого рабочего дня.
+
 ### 11. Supabase-фундамент
 - [supabase/README.md](/c:/Users/95/Desktop/KAA%2086/supabase/README.md)
 

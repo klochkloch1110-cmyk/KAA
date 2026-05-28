@@ -30,9 +30,9 @@ create temp table if not exists dev_seed_ids (
 
 insert into dev_seed_ids (key, id)
 values
-  ('admin', '00000000-0000-0000-0000-000000000001'),
-  ('driver_1', '00000000-0000-0000-0000-000000000002'),
-  ('driver_2', '00000000-0000-0000-0000-000000000003')
+  ('admin', '6313198c-9d89-41d3-b565-5faa7f084f13'),
+  ('driver_1', '923167f9-e4e3-4c68-aa5a-42caf5f3036d'),
+  ('driver_2', '6a9d0702-dd75-4460-9653-4740d3e212e0')
 on conflict (key) do update set id = excluded.id;
 
 -- ----------------------------------------------------------------------------
@@ -135,8 +135,8 @@ on conflict (plate_number) do update set
   status = excluded.status,
   notes = excluded.notes;
 
-insert into public.vehicle_assignments (vehicle_id, driver_id, start_date, is_active)
-select v.id, u.id, current_date - interval '30 days', true
+insert into public.vehicle_assignments (vehicle_id, driver_id, assigned_from)
+select v.id, u.id, now() - interval '30 days'
 from (
   values
     ('А123КС 77', (select id from dev_seed_ids where key = 'driver_1')),
@@ -146,7 +146,7 @@ join public.vehicles v on v.plate_number = seed.plate_number
 join public.users u on u.id = seed.driver_id
 where not exists (
   select 1 from public.vehicle_assignments va
-  where va.vehicle_id = v.id and va.driver_id = u.id and va.is_active
+  where va.vehicle_id = v.id and va.driver_id = u.id and va.assigned_to is null
 );
 
 -- ----------------------------------------------------------------------------

@@ -1,0 +1,33 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "AVL 84 Flutter Web (dev mode)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "app",
+      "deviceId": "chrome"
+    },
+    {
+      "name": "AVL 84 Flutter Web (Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "app",
+      "deviceId": "chrome",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://gchueqetoaqtjhgnjyej.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_bfUBcNYIg0PHsGqEpaEBzQ_euhNdh9H"
+      ]
+    },
+    {
+      "name": "AVL 84 Flutter Android (Supabase)",
+      "request": "launch",
+      "type": "dart",
+      "cwd": "app",
+      "toolArgs": [
+        "--dart-define=SUPABASE_URL=https://gchueqetoaqtjhgnjyej.supabase.co",
+        "--dart-define=SUPABASE_ANON_KEY=sb_publishable_bfUBcNYIg0PHsGqEpaEBzQ_euhNdh9H"
+      ]
+    }
+  ]
+}

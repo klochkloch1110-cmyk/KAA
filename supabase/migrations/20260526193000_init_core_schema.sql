@@ -4,6 +4,11 @@
 
 create extension if not exists pgcrypto;
 
+-- Functions below reference tables that are created later in this migration.
+-- Supabase SQL Editor validates SQL function bodies at creation time unless this
+-- setting is disabled for the migration session.
+set check_function_bodies = off;
+
 -- -----------------------------------------------------------------------------
 -- Enums
 -- -----------------------------------------------------------------------------
@@ -68,6 +73,8 @@ set search_path = public
 as $$
   select coalesce(public.current_app_role() in ('admin', 'operator'), false)
 $$;
+
+set check_function_bodies = on;
 
 -- -----------------------------------------------------------------------------
 -- Users and roles
