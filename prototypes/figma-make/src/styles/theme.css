@@ -1,0 +1,149 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* DARK THEME MATCHING SCREENSHOT */
+  --background: #0B0E14; /* Deep, dark navy/black */
+  --foreground: #FFFFFF;
+
+  /* Card Surfaces */
+  --card: #151822; /* Slightly lighter navy for panels */
+  --card-foreground: #FFFFFF;
+  
+  --popover: #1A1D27;
+  --popover-foreground: #FFFFFF;
+
+  /* Accents */
+  --primary: #2A85FF; /* Vibrant Blue */
+  --primary-foreground: #FFFFFF;
+
+  --secondary: #1F2332;
+  --secondary-foreground: #FFFFFF;
+
+  --muted: #1F2332;
+  --muted-foreground: #8A94A6;
+
+  --accent: #00F0FF; /* Cyan */
+  --accent-foreground: #0B0E14;
+
+  /* Status */
+  --status-success: #00E676;
+  --status-warning: #FFB020;
+  --status-error: #FF4D4D;
+  --status-pending: #8A94A6;
+
+  /* Structure */
+  --border: rgba(255, 255, 255, 0.06); 
+  --input: #151822;
+  --input-background: rgba(255, 255, 255, 0.03);
+  --switch-background: rgba(255, 255, 255, 0.1);
+  --ring: #2A85FF;
+
+  /* Rounding: Screenshot usually has moderate rounding, ~12-16px */
+  --radius: 1rem; 
+  
+  /* Shadows */
+  --shadow-panel: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(42, 133, 255, 0.3);
+  
+  /* Sidebar */
+  --sidebar: #0B0E14;
+  --sidebar-foreground: #8A94A6;
+  --sidebar-border: rgba(255, 255, 255, 0.06);
+}
+
+.dark {
+  --background: #0B0E14;
+  --foreground: #FFFFFF;
+  --card: #151822;
+  --card-foreground: #FFFFFF;
+  --popover: #1A1D27;
+  --popover-foreground: #FFFFFF;
+  --primary: #2A85FF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1F2332;
+  --secondary-foreground: #FFFFFF;
+  --muted: #1F2332;
+  --muted-foreground: #8A94A6;
+  --accent: #00F0FF;
+  --accent-foreground: #0B0E14;
+  --border: rgba(255, 255, 255, 0.06);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-ring: var(--ring);
+  
+  --color-status-success: var(--status-success);
+  --color-status-warning: var(--status-warning);
+  --color-status-error: var(--status-error);
+  --color-status-pending: var(--status-pending);
+  
+  --shadow-panel: var(--shadow-panel);
+  --shadow-glow: var(--shadow-glow);
+  
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+}
+
+@layer utilities {
+  .dashboard-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-panel);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Outfit', system-ui, sans-serif;
+    background-image: 
+      radial-gradient(circle at top right, rgba(42, 133, 255, 0.08), transparent 40%),
+      radial-gradient(circle at bottom left, rgba(0, 240, 255, 0.05), transparent 40%);
+    background-attachment: fixed;
+  }
+
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace !important;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--muted);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+  }
+}
