@@ -6,6 +6,7 @@ import '../../../../core/constants/app_config.dart';
 import '../../../../core/enums/user_role.dart';
 import '../../../../core/widgets/app_panel.dart';
 import '../../../../core/widgets/app_status_badge.dart';
+import '../../../../shared/repositories/dev_operations_repository.dart';
 import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../orders/presentation/controllers/orders_controller.dart';
 import '../../../trips/presentation/controllers/trips_controller.dart';
@@ -58,6 +59,7 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
       final driverTrips = openShift == null ? const [] : trips.where((item) => item.shiftId == openShift.id).toList(growable: false);
       final orderBreakdown = _buildOrderBreakdown(driverTrips, orders);
       final vehiclePlate = _resolveVehiclePlate(user?.fullName, orders, driverTrips);
+      final minOdometerKm = _resolveLastOdometerKm(vehiclePlate);
       final totalVolume = driverTrips.fold<double>(0, (sum, item) => sum + item.volumeValue);
       final totalEarnings = driverTrips.fold<int>(0, (sum, trip) {
         final matches = orders.where((order) => order.id == trip.orderId);
@@ -108,6 +110,7 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
                       odometerController: _odometerController,
                       fuelController: _fuelController,
                       noteController: _noteController,
+                      minOdometerKm: minOdometerKm,
                       onSubmit: () => _closeShift(openShift.id),
                       isSaving: _isSavingShift,
                     ),
@@ -333,6 +336,12 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
       }
     }
   }
+
+  int? _resolveLastOdometerKm(String vehiclePlate) {
+    final vehicles = ref.read(devOperationsRepositoryProvider).getVehicles();
+    final matches = vehicles.where((item) => item.plateNumber == vehiclePlate);
+    return matches.isEmpty ? null : matches.first.odometerKm;
+  }
 }
 
 class _CloseShiftForm extends StatelessWidget {
@@ -341,6 +350,7 @@ class _CloseShiftForm extends StatelessWidget {
     required this.odometerController,
     required this.fuelController,
     required this.noteController,
+    required this.minOdometerKm,
     required this.onSubmit,
     required this.isSaving,
   });
@@ -349,6 +359,7 @@ class _CloseShiftForm extends StatelessWidget {
   final TextEditingController odometerController;
   final TextEditingController fuelController;
   final TextEditingController noteController;
+  final int? minOdometerKm;
   final VoidCallback onSubmit;
   final bool isSaving;
 
@@ -361,13 +372,21 @@ class _CloseShiftForm extends StatelessWidget {
           TextFormField(
             controller: odometerController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(labelText: 'Пробег на конец смены, км'),
+            decoration: InputDecoration(
+              labelText: 'Пробег на конец смены, км',
+              helperText: minOdometerKm == null ? null : 'Не меньше последнего пробега: $minOdometerKm км',
+            ),
             validator: (value) {
               if ((value ?? '').trim().isEmpty) {
                 return 'Укажите пробег';
               }
-              if ((int.tryParse(value!.trim()) ?? -1) <= 0) {
+              final odometer = int.tryParse(value!.trim()) ?? -1;
+              if (odometer <= 0) {
                 return 'Пробег должен быть положительным';
+              }
+              final minValue = minOdometerKm;
+              if (minValue != null && odometer < minValue) {
+                return 'Пробег не может быть меньше $minValue км';
               }
               return null;
             },
