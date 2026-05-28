@@ -191,6 +191,12 @@ class _TripReportSheetState extends State<_TripReportSheet> {
 
     final user = widget.ref.read(authControllerProvider).valueOrNull;
     final openShift = user == null ? null : widget.ref.read(shiftsControllerProvider.notifier).openShiftForDriver(user.fullName);
+    if (openShift == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Перед рейсовым отчетом нужно открыть смену.')),
+      );
+      return;
+    }
 
     setState(() => _isSubmitting = true);
     try {
@@ -205,7 +211,7 @@ class _TripReportSheetState extends State<_TripReportSheet> {
               supportingPhotosCount: int.tryParse(_supportingPhotosController.text.trim()) ?? 0,
               runOcrCheck: _runOcrCheck,
               comment: _commentController.text,
-              shiftId: openShift?.id,
+              shiftId: openShift.id,
               driverId: user?.isDev == false ? user?.id : null,
               vehicleId: widget.order.assignedVehicleId,
             ),

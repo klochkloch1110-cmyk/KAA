@@ -18,6 +18,7 @@ class TripsController extends StateNotifier<List<TripReportSummary>> {
           TripReportSummary(
             id: 'trip-1',
             orderId: 'order-1',
+            shiftId: null,
             orderNumber: 'AVL-0021/05/26',
             customerName: 'Стройком-М',
             driverName: 'Иванов Иван Петрович',
@@ -34,6 +35,7 @@ class TripsController extends StateNotifier<List<TripReportSummary>> {
           TripReportSummary(
             id: 'trip-2',
             orderId: 'order-2',
+            shiftId: 'shift-1',
             orderNumber: 'AVL-0022/05/26',
             customerName: 'БетонИнвест',
             driverName: 'Петров Сергей Николаевич',
@@ -78,6 +80,7 @@ class TripsController extends StateNotifier<List<TripReportSummary>> {
     final report = TripReportSummary(
       id: 'trip-${state.length + 1}',
       orderId: draft.order.id,
+      shiftId: draft.shiftId,
       orderNumber: draft.order.orderNumber,
       customerName: draft.order.customerName,
       driverName: draft.order.driverName,

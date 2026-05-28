@@ -94,7 +94,7 @@ class ShiftsController extends StateNotifier<List<ShiftSummary>> {
     }
 
     final current = state[index];
-    final driverTrips = trips.where((item) => item.driverName == current.driverName).toList(growable: false);
+    final driverTrips = trips.where((item) => item.shiftId == current.id).toList(growable: false);
     final totalVolume = driverTrips.fold<double>(0, (sum, item) => sum + item.volumeValue);
     final totalEarnings = driverTrips.fold<int>(0, (sum, trip) {
       final order = _findOrder(orders, trip.orderId);

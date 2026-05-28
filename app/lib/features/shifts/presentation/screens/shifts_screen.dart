@@ -55,7 +55,7 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
 
     if (isDriver) {
       final openShift = user == null ? null : ref.read(shiftsControllerProvider.notifier).openShiftForDriver(user.fullName);
-      final driverTrips = user == null ? const [] : trips.where((item) => item.driverName == user.fullName).toList(growable: false);
+      final driverTrips = openShift == null ? const [] : trips.where((item) => item.shiftId == openShift.id).toList(growable: false);
       final orderBreakdown = _buildOrderBreakdown(driverTrips, orders);
       final vehiclePlate = _resolveVehiclePlate(user?.fullName, orders, driverTrips);
       final totalVolume = driverTrips.fold<double>(0, (sum, item) => sum + item.volumeValue);
@@ -198,7 +198,7 @@ class _ShiftsScreenState extends ConsumerState<ShiftsScreen> {
           }
 
           final shift = shifts[index - 1];
-          final shiftTrips = trips.where((item) => item.driverName == shift.driverName).toList(growable: false);
+          final shiftTrips = trips.where((item) => item.shiftId == shift.id).toList(growable: false);
           final orderBreakdown = _buildOrderBreakdown(shiftTrips, orders);
           final tone = shift.statusLabel == 'Открыта' ? AppStatusTone.success : AppStatusTone.info;
 

@@ -27,6 +27,7 @@ class DriverOrdersScreen extends ConsumerWidget {
         separatorBuilder: (context, index) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
           final order = orders[index];
+          final canCreateTripReport = order.statusLabel != 'Отменена' && order.statusLabel != 'Завершена';
           return AppPanel(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -56,9 +57,9 @@ class DriverOrdersScreen extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: () => showTripReportSheet(context, ref, order),
+                        onPressed: canCreateTripReport ? () => showTripReportSheet(context, ref, order) : null,
                         icon: const Icon(Icons.camera_alt_rounded),
-                        label: const Text('Отчет по рейсу'),
+                        label: Text(canCreateTripReport ? 'Отчет по рейсу' : 'Отчет недоступен'),
                       ),
                     ),
                   ],

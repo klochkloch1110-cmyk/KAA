@@ -94,6 +94,7 @@ class SupabaseTripsRepository implements TripsRepository {
   static const _select = '''
     id,
     order_id,
+    shift_id,
     loaded_volume,
     volume_unit,
     ttn_number_manual,
@@ -179,6 +180,7 @@ class SupabaseTripsRepository implements TripsRepository {
     return TripReportSummary(
       id: row['id'] as String,
       orderId: row['order_id'] as String,
+      shiftId: row['shift_id'] as String?,
       orderNumber: order?['order_number'] as String? ?? 'Без номера',
       customerName: customers?['name'] as String? ?? 'Заказчик не указан',
       driverName: _nestedValue(row['driver'], 'full_name') ?? 'Водитель не указан',
@@ -274,6 +276,7 @@ extension on TripReportSummary {
     return TripReportSummary(
       id: id,
       orderId: orderId,
+      shiftId: shiftId,
       orderNumber: orderNumber,
       customerName: customerName,
       driverName: driverName,

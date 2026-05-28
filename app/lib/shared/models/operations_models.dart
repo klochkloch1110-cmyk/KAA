@@ -176,6 +176,7 @@ class TripReportSummary {
   const TripReportSummary({
     required this.id,
     required this.orderId,
+    this.shiftId,
     required this.orderNumber,
     required this.customerName,
     required this.driverName,
@@ -192,6 +193,7 @@ class TripReportSummary {
 
   final String id;
   final String orderId;
+  final String? shiftId;
   final String orderNumber;
   final String customerName;
   final String driverName;
