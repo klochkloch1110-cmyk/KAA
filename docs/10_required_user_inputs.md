@@ -6,8 +6,8 @@
 
 Нужно предоставить разработчику или внести самостоятельно:
 
-- `SUPABASE_URL` - URL проекта вида `https://xxxxx.supabase.co`;
-- `SUPABASE_ANON_KEY` - публичный anon key для Flutter-клиента;
+- `VITE_SUPABASE_URL` - URL проекта вида `https://xxxxx.supabase.co` в `app/.env`;
+- `VITE_SUPABASE_ANON_KEY` - публичный anon key для React/Vite-клиента в `app/.env`;
 - доступ к Supabase SQL Editor или возможность применить SQL-файлы из `supabase/migrations/`;
 - подтверждение, что bucket `documents` создан миграцией и остается приватным.
 
@@ -71,4 +71,3 @@ supabase/tests/rls_smoke_checks.sql
 9. Закрытие смены.
 10. CSV-выгрузка.
 11. RLS smoke-check: водитель не видит чужие рейсы, смены и документы.
-

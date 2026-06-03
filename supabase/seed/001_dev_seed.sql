@@ -44,8 +44,8 @@ select seed.id, seed.role::public.app_role, seed.full_name, seed.phone, 'active'
 from (
   values
     ((select id from dev_seed_ids where key = 'admin'), 'admin', 'Администратор AVL 84', '+7 900 000-00-01'),
-    ((select id from dev_seed_ids where key = 'driver_1'), 'driver', 'Иванов Иван Петрович', '+7 999 111-22-33'),
-    ((select id from dev_seed_ids where key = 'driver_2'), 'driver', 'Петров Сергей Николаевич', '+7 999 222-33-44')
+    ((select id from dev_seed_ids where key = 'driver_1'), 'driver', 'Сакеев Руслан Владимирович', '+7 999 111-22-33'),
+    ((select id from dev_seed_ids where key = 'driver_2'), 'driver', 'Ворошилов Александр Николаевич', '+7 999 222-33-44')
 ) as seed(id, role, full_name, phone)
 where exists (select 1 from auth.users au where au.id = seed.id)
 on conflict (id) do update set

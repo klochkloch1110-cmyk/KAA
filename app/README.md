@@ -1,74 +1,81 @@
-# AVL 84 Flutter App
+# AVL 84 App
 
-Flutter-клиент для внутренней системы управления перевозками AVL 84.
+Основное приложение AVL 84 на React/Vite. За основу взят макет из Figma Make: интерфейс панели руководителя и мобильного приложения водителя теперь является главной кодовой базой в папке `app/`.
 
-## Назначение
+Оригинальный Figma-проект:
+https://www.figma.com/design/gijCsfYKdyGTATp1uYvY2t/%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BF%D1%80%D0%B8%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F-%D0%BF%D0%BE-%D0%A2%D0%97
 
-Один Flutter-проект покрывает:
+## Назначение папки
 
-- Android-приложение водителя;
-- Flutter Web-кабинет руководителя;
-- общую навигацию, тему, модели и доступ к Supabase.
+Папка `app/` больше не содержит Flutter-код. Дальнейшая разработка ведется здесь, поверх React/Vite-макета.
 
-## Статус
-
-Flutter SDK сейчас не найден в окружении, поэтому папка содержит подготовленный каркас проекта вручную. После установки Flutter нужно выполнить:
-
-```bash
-flutter pub get
-flutter analyze
-flutter test
-```
-
-Если потребуется полностью сгенерировать platform-папки, можно выполнить из этой папки:
-
-```bash
-flutter create . --platforms=android,web
-```
-
-После генерации важно не потерять уже подготовленную структуру `lib/`.
-
-## Запуск с Supabase
-
-Конфигурация читается через `--dart-define`:
-
-```bash
-flutter run \
-  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=your-anon-key
-```
-
-Если значения не переданы, приложение работает в dev-режиме: на экране входа доступны кнопки входа как руководитель или водитель без подключения к Supabase.
-
-## Auth flow
-
-Подготовлено:
-
-- `AppConfig` для чтения окружения;
-- `Supabase.initialize` в `bootstrap.dart`;
-- `AuthRepository`;
-- `AuthController` на Riverpod;
-- role-based redirect в `go_router`;
-- dev-вход для проверки shell'ов без backend.
+Ближайший инженерный фокус:
+- привести сгенерированный UI-код к рабочей архитектуре приложения;
+- подключить реальные данные и Supabase API;
+- реализовать первый сквозной сценарий: заявка -> рейс -> фото ТТН -> смена -> выгрузка;
+- сохранить визуальный стиль макета как основной продуктовый UI.
 
 ## Структура
 
-```text
-lib/
-  app/          bootstrap, app widget, router, theme, DI
-  core/         общие константы, ошибки, сервисы, утилиты, виджеты
-  features/     функциональные модули
-  shared/       общие модели, providers, repositories
+- `src/app/App.tsx` - главный экран прототипа и переключение между панелью руководителя и приложением водителя.
+- `src/app/components/` - экраны и компоненты прототипа.
+- `src/app/components/ui/` - сгенерированные UI-компоненты.
+- `src/imports/` - изображения и вставленные материалы из Figma Make.
+- `src/styles/` - стили, тема, Tailwind-настройки.
+- `public/` - публичные ассеты прототипа.
+
+## Запуск
+
+Из этой папки:
+
+```bash
+npm i
+npm run dev
 ```
 
-## Первый сквозной сценарий
+Сборка:
 
-```text
-admin creates order
--> assigns driver and vehicle
--> driver sees order
--> driver submits trip report with TTN photo
--> driver closes shift
--> admin sees trips, shifts and documents
--> admin exports trips table
+```bash
+npm run build
 ```
+
+## Данные и Supabase
+
+По умолчанию приложение работает в `mock-режиме`: данные хранятся в общем клиентском сторе и не требуют внешних ключей.
+
+Для подготовки Supabase-подключения создайте `.env` рядом с `.env.example`:
+
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Если значения не заданы или оставлены placeholder'ами, приложение автоматически остается в mock-режиме.
+
+В mock-режиме на экране входа доступны быстрые кнопки:
+
+- `Руководитель` - открывает web-панель админа;
+- `Водитель` - открывает мобильный интерфейс водителя.
+
+После подключения Supabase вход будет идти через `Supabase Auth`, а роль будет читаться из таблицы `public.users`.
+
+Ключевые файлы слоя данных:
+
+- `src/app/auth/AuthProvider.tsx` - состояние авторизации и текущий пользователь;
+- `src/app/repositories/authRepository.ts` - mock/Supabase-ready вход и выход;
+- `src/app/store/AppStore.tsx` - общий стор текущего приложения;
+- `src/app/config/env.ts` - чтение переменных окружения;
+- `src/app/services/supabaseClient.ts` - безопасная инициализация Supabase-клиента;
+- `src/app/repositories/operationsRepository.ts` - интерфейс репозитория под будущую замену mock-операций на Supabase.
+
+Или с pnpm, если он установлен:
+
+```bash
+pnpm i
+pnpm dev
+```
+
+## Источник макета
+
+Оригинальный Figma-проект:
+https://www.figma.com/design/gijCsfYKdyGTATp1uYvY2t/%D0%A1%D0%BE%D0%B7%D0%B4%D0%B0%D0%BD%D0%B8%D0%B5-%D0%BF%D1%80%D0%B8%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F-%D0%BF%D0%BE-%D0%A2%D0%97

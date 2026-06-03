@@ -66,15 +66,23 @@ supabase/
 supabase/seed/001_dev_seed.sql
 ```
 
-### 3. Запустить Flutter с реальным backend
+### 3. Запустить React/Vite-приложение с реальным backend
+
+Из папки `app/` установить зависимости и запустить приложение:
 
 ```bash
-flutter run \
-  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=your-anon-key
+npm i
+npm run dev
 ```
 
-Для web можно добавить `-d chrome`, для Android - выбрать подключенное устройство.
+Для подключения живого Supabase создать `app/.env`:
+
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+Если `.env` не задан или содержит placeholder-значения, приложение остается в mock-режиме.
 
 ### 4. Проверить RLS вручную
 

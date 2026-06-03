@@ -1,6 +1,6 @@
 # AVL 84 - Supabase integration runbook
 
-Этот файл нужен для первого подключения живого Supabase-проекта к Flutter-приложению и проверки RLS.
+Этот файл нужен для первого подключения живого Supabase-проекта к React/Vite-приложению и проверки RLS.
 
 ## 1. Что нужно заранее
 
@@ -33,18 +33,18 @@ supabase/migrations/20260528075000_storage_trip_document_policies.sql
 Из папки `app/`:
 
 ```bash
-flutter run \
-  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=your-anon-key
+npm i
+npm run dev
 ```
 
-Для web:
+Для подключения живого Supabase создайте `app/.env`:
 
 ```bash
-flutter run -d chrome \
-  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
-  --dart-define=SUPABASE_ANON_KEY=your-anon-key
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
+
+Если `.env` не задан или содержит placeholder-значения из `.env.example`, приложение остается в mock-режиме.
 
 ## 4. Ручная проверка сценария 0.1
 
@@ -82,4 +82,3 @@ supabase/tests/rls_smoke_checks.sql
 - Водитель видит чужие строки - остановить приемку и исправить RLS.
 - ТТН не открывается - проверить `documents.file_path`, bucket `documents` и Storage policies.
 - Фото не загружается - проверить MIME type, размер файла и путь `trips/{tripId}/ttn/...`.
-
