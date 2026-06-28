@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { operationsRepository } from "../repositories/operationsRepository";
 import { getSupabaseClient } from "../services/supabaseClient";
 
-export type OrderStatus = "draft" | "assigned" | "in_progress" | "completed" | "archived";
+export type OrderStatus = "draft" | "assigned" | "in_progress" | "completed" | "cancelled" | "archived";
 
 export interface AssignedDriver {
   driverId?: string;
@@ -53,6 +53,8 @@ export interface CreateOrderInput {
   note?: string;
 }
 
+export type UpdateOrderInput = CreateOrderInput;
+
 export interface CreateDriverInput {
   email: string;
   password: string;
@@ -62,6 +64,20 @@ export interface CreateDriverInput {
   licenseExpiry: string;
   licenseCategories: string[];
   employmentDate: string;
+  note?: string;
+}
+
+export interface CreateVehicleInput {
+  plate: string;
+  brand: string;
+  model: string;
+  type: string;
+  year: number;
+  vin: string;
+  capacity: number;
+  bodyVolume: number | null;
+  assignedDriver: string;
+  currentOdometer?: number;
   note?: string;
 }
 
@@ -163,6 +179,24 @@ export interface AppVehicle {
   status: string;
 }
 
+export type DictionaryKind = "customers" | "organizations" | "materials" | "locations";
+
+export interface AppDictionaryItem {
+  id: string;
+  kind: DictionaryKind;
+  name: string;
+  subtitle?: string;
+  isActive?: boolean;
+}
+
+export interface CreateDictionaryItemInput {
+  kind: DictionaryKind;
+  name: string;
+  subtitle?: string;
+}
+
+export type AppAccessRole = "admin" | "operator" | "driver";
+
 export interface CloseShiftInput {
   closingOdometer: number;
   fuelFilledLiters?: number;
@@ -183,8 +217,13 @@ interface AppStoreValue {
   shifts: AppShift[];
   drivers: AppDriver[];
   vehicles: AppVehicle[];
+  dictionaries: AppDictionaryItem[];
+  canManageDictionaries: (role?: AppAccessRole | null) => boolean;
   createOrder: (order: CreateOrderInput) => Promise<void>;
+  updateOrder: (order: UpdateOrderInput) => Promise<void>;
   createDriver: (driver: CreateDriverInput) => Promise<void>;
+  createVehicle: (vehicle: CreateVehicleInput) => Promise<void>;
+  createDictionaryItem: (item: CreateDictionaryItemInput) => Promise<void>;
   assignDrivers: (orderNumber: string, drivers: AssignedDriver[]) => Promise<void> | void;
   advanceOrderStatus: (orderNumber: string) => Promise<void> | void;
   openShift: (input: OpenShiftInput) => Promise<void>;
@@ -311,6 +350,17 @@ const initialVehicles: AppVehicle[] = [
   },
 ];
 
+const initialDictionaries: AppDictionaryItem[] = [
+  { id: "mock-customer-1", kind: "customers", name: "Стройком-М", subtitle: "Заказчик" },
+  { id: "mock-customer-2", kind: "customers", name: "БетонСтрой", subtitle: "Заказчик" },
+  { id: "mock-organization-1", kind: "organizations", name: "ООО «КарьерСтрой»", subtitle: "Отправитель" },
+  { id: "mock-organization-2", kind: "organizations", name: "ООО «Стройком-М»", subtitle: "Получатель" },
+  { id: "mock-material-1", kind: "materials", name: "Песок", subtitle: "тонн", isActive: true },
+  { id: "mock-material-2", kind: "materials", name: "Щебень", subtitle: "тонн", isActive: true },
+  { id: "mock-location-1", kind: "locations", name: "Карьер №3", subtitle: "ул. Каменная 15" },
+  { id: "mock-location-2", kind: "locations", name: "Стройка Ленина 45", subtitle: "котлован" },
+];
+
 const AppStoreContext = createContext<AppStoreValue | null>(null);
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
@@ -320,6 +370,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [shifts, setShifts] = useState<AppShift[]>(operationsRepository.mode === "supabase" ? [] : initialShifts);
   const [drivers, setDrivers] = useState<AppDriver[]>([]);
   const [vehicles, setVehicles] = useState<AppVehicle[]>(operationsRepository.mode === "supabase" ? [] : initialVehicles);
+  const [dictionaries, setDictionaries] = useState<AppDictionaryItem[]>(operationsRepository.mode === "supabase" ? [] : initialDictionaries);
 
   async function refreshSupabaseData() {
     if (operationsRepository.mode !== "supabase") return;
@@ -331,9 +382,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       operationsRepository.listShifts(),
       operationsRepository.listDrivers(),
       operationsRepository.listVehicles(),
+      operationsRepository.listDictionaries(),
     ] as const);
 
-    const [ordersResult, tripsResult, documentsResult, shiftsResult, driversResult, vehiclesResult] = results;
+    const [ordersResult, tripsResult, documentsResult, shiftsResult, driversResult, vehiclesResult, dictionariesResult] = results;
 
     if (ordersResult.status === "fulfilled") setOrders(ordersResult.value);
     else console.warn("Не удалось обновить заявки из Supabase", ordersResult.reason);
@@ -352,6 +404,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
 
     if (vehiclesResult.status === "fulfilled") setVehicles(vehiclesResult.value);
     else console.warn("Не удалось обновить автопарк из Supabase", vehiclesResult.reason);
+
+    if (dictionariesResult.status === "fulfilled") setDictionaries(dictionariesResult.value);
+    else console.warn("Не удалось обновить справочники из Supabase", dictionariesResult.reason);
   }
 
   useEffect(() => {
@@ -370,6 +425,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           setShifts([]);
           setDrivers([]);
           setVehicles([]);
+          setDictionaries([]);
         }
       });
       unsubscribe = () => subscription?.data.subscription.unsubscribe();
@@ -386,6 +442,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     shifts,
     drivers,
     vehicles,
+    dictionaries,
+    canManageDictionaries(role) {
+      return role === "admin" || role === "operator";
+    },
     async createOrder(order) {
       const optimisticOrder: AppOrder = {
         ...order,
@@ -408,11 +468,83 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
+    async updateOrder(order) {
+      const previousOrders = orders;
+      setOrders((prev) => prev.map((item) => (
+        item.number === order.number
+          ? {
+              ...item,
+              ...order,
+              volume: order.volume ?? 0,
+            }
+          : item
+      )));
+
+      try {
+        await operationsRepository.updateOrder(order);
+        await refreshSupabaseData().catch((error) => {
+          console.warn("Заявка обновлена, но обновить данные из Supabase не удалось", error);
+        });
+      } catch (error) {
+        setOrders(previousOrders);
+        throw error;
+      }
+    },
     async createDriver(driver) {
       await operationsRepository.createDriver(driver);
       await refreshSupabaseData();
     },
+    async createVehicle(vehicle) {
+      const optimisticVehicle: AppVehicle = {
+        id: `VEH-${Date.now()}`,
+        plate: vehicle.plate,
+        brand: vehicle.brand,
+        model: vehicle.model,
+        type: vehicle.type,
+        year: vehicle.year,
+        vin: vehicle.vin,
+        capacity: vehicle.capacity,
+        bodyVolume: vehicle.bodyVolume,
+        currentOdometer: vehicle.currentOdometer ?? 0,
+        assignedDriver: vehicle.assignedDriver,
+        status: "active",
+      };
+
+      setVehicles((prev) => [optimisticVehicle, ...prev]);
+
+      try {
+        await operationsRepository.createVehicle(vehicle);
+        await refreshSupabaseData().catch((error) => {
+          console.warn("ТС создано, но обновить данные из Supabase не удалось", error);
+        });
+      } catch (error) {
+        setVehicles((prev) => prev.filter((item) => item.id !== optimisticVehicle.id));
+        throw error;
+      }
+    },
+    async createDictionaryItem(item) {
+      const optimisticItem: AppDictionaryItem = {
+        id: `DICT-${Date.now()}`,
+        kind: item.kind,
+        name: item.name.trim(),
+        subtitle: item.subtitle?.trim() || undefined,
+        isActive: item.kind === "materials" ? true : undefined,
+      };
+
+      setDictionaries((prev) => [optimisticItem, ...prev]);
+
+      try {
+        await operationsRepository.createDictionaryItem(item);
+        await refreshSupabaseData().catch((error) => {
+          console.warn("Справочник обновлён, но перечитать данные из Supabase не удалось", error);
+        });
+      } catch (error) {
+        setDictionaries((prev) => prev.filter((entry) => entry.id !== optimisticItem.id));
+        throw error;
+      }
+    },
     async assignDrivers(orderNumber, drivers) {
+      const previousOrders = orders;
       setOrders((prev) => prev.map((order) => (
         order.number === orderNumber
           ? { ...order, drivers, status: drivers.length > 0 ? "assigned" : "draft" }
@@ -425,7 +557,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
           console.warn("Назначение сохранено, но обновить данные из Supabase не удалось", error);
         });
       } catch (error) {
-        await refreshSupabaseData();
+        if (operationsRepository.mode === "supabase") await refreshSupabaseData();
+        else setOrders(previousOrders);
         throw error;
       }
     },
@@ -610,7 +743,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     getOrderTrips(orderNumber) {
       return trips.filter((trip) => trip.orderNumber === orderNumber);
     },
-  }), [documents, drivers, orders, shifts, trips, vehicles]);
+  }), [dictionaries, documents, drivers, orders, shifts, trips, vehicles]);
 
   return <AppStoreContext.Provider value={value}>{children}</AppStoreContext.Provider>;
 }

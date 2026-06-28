@@ -16,11 +16,14 @@ import {
   TrendingUp,
   ArrowDownUp,
 } from "lucide-react";
-import type { CreateOrderInput } from "../store/AppStore";
+import { useAppStore } from "../store/AppStore";
+import type { AppOrder, CreateOrderInput, DictionaryKind } from "../store/AppStore";
 
 interface CreateOrderModalProps {
   onClose: () => void;
   onCreated?: (order: CreatedOrderDraft) => Promise<void> | void;
+  initialOrder?: AppOrder;
+  mode?: "create" | "edit";
 }
 
 export type CreatedOrderDraft = CreateOrderInput;
@@ -85,9 +88,11 @@ const empty: FormState = {
   note: "",
 };
 
-export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) {
-  const [orderNumber] = useState(generateOrderNumber);
-  const [form, setForm] = useState<FormState>(empty);
+export function CreateOrderModal({ onClose, onCreated, initialOrder, mode = "create" }: CreateOrderModalProps) {
+  const { dictionaries } = useAppStore();
+  const isEdit = mode === "edit" && initialOrder;
+  const [orderNumber] = useState(() => initialOrder?.number ?? generateOrderNumber());
+  const [form, setForm] = useState<FormState>(() => initialOrder ? formFromOrder(initialOrder) : empty);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -121,7 +126,7 @@ export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) 
     try {
       await withTimeout(onCreated?.({
         number: orderNumber,
-        date: todayStr(),
+        date: initialOrder?.date ?? todayStr(),
         customer: form.customer.trim(),
         from: form.from.trim(),
         to: form.to.trim(),
@@ -138,13 +143,18 @@ export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) 
       setDone(true);
       setTimeout(onClose, 1600);
     } catch (error) {
-      setSubmitError(error instanceof Error ? error.message : "Не удалось создать заявку");
+      setSubmitError(error instanceof Error ? error.message : isEdit ? "Не удалось обновить заявку" : "Не удалось создать заявку");
     } finally {
       setSubmitting(false);
     }
   }
 
   const hasRoute = form.pointA.trim() && form.pointB.trim();
+
+  const customerOptions = dictionaryNames(dictionaries, "customers");
+  const organizationOptions = dictionaryNames(dictionaries, "organizations");
+  const locationOptions = dictionaryLabels(dictionaries, "locations");
+  const materialOptions = uniqueStrings([...dictionaryNames(dictionaries, "materials"), ...MATERIALS]);
 
   const mapSrc = hasRoute
     ? `https://yandex.ru/maps/?rtext=${encodeURIComponent(form.pointA)}~${encodeURIComponent(form.pointB)}&rtt=auto&z=10&l=map&from=api-maps`
@@ -157,8 +167,8 @@ export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) 
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-gradient-to-r from-primary/10 via-accent/5 to-transparent shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-card-foreground">Новая заявка</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Заполните форму задания</p>
+            <h2 className="text-lg font-bold text-card-foreground">{isEdit ? "Редактирование заявки" : "Новая заявка"}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{isEdit ? "Измените данные задания" : "Заполните форму задания"}</p>
           </div>
           <button
             onClick={onClose}
@@ -175,7 +185,7 @@ export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) 
               <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mb-4">
                 <CheckCircle2 className="w-8 h-8 text-green-500" />
               </div>
-              <h3 className="text-xl font-bold text-card-foreground mb-1">Заявка создана!</h3>
+              <h3 className="text-xl font-bold text-card-foreground mb-1">{isEdit ? "Заявка обновлена!" : "Заявка создана!"}</h3>
               <p className="text-sm text-muted-foreground">{orderNumber}</p>
             </div>
           ) : (
@@ -209,9 +219,11 @@ export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) 
                     <input
                       value={form.customer}
                       onChange={(e) => set("customer", e.target.value)}
+                      list="order-customers"
                       placeholder="Наименование заказчика"
                       className={cls(!!errors.customer) + " pl-9"}
                     />
+                    <SuggestionList id="order-customers" values={customerOptions} />
                   </div>
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
@@ -219,17 +231,21 @@ export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) 
                     <input
                       value={form.from}
                       onChange={(e) => set("from", e.target.value)}
+                      list="order-organizations-from"
                       placeholder="Название организации"
                       className={cls(!!errors.from)}
                     />
+                    <SuggestionList id="order-organizations-from" values={organizationOptions} />
                   </Field>
                   <Field label="Кому" error={errors.to}>
                     <input
                       value={form.to}
                       onChange={(e) => set("to", e.target.value)}
+                      list="order-organizations-to"
                       placeholder="Название организации"
                       className={cls(!!errors.to)}
                     />
+                    <SuggestionList id="order-organizations-to" values={organizationOptions} />
                   </Field>
                 </div>
               </Section>
@@ -245,7 +261,7 @@ export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) 
                           className={cls(!!errors.material) + " appearance-none pr-8"}
                         >
                           <option className="bg-white text-slate-900" value="">Выберите...</option>
-                          {MATERIALS.map((m) => (
+                          {materialOptions.map((m) => (
                             <option className="bg-white text-slate-900" key={m} value={m}>{m}</option>
                           ))}
                         </select>
@@ -292,9 +308,11 @@ export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) 
                         set("pointA", e.target.value);
                         setShowMap(false);
                       }}
+                      list="order-locations-a"
                       placeholder="Наименование места погрузки, адрес"
                       className={cls(!!errors.pointA) + " pl-10"}
                     />
+                    <SuggestionList id="order-locations-a" values={locationOptions} />
                   </div>
                 </Field>
 
@@ -310,9 +328,11 @@ export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) 
                         set("pointB", e.target.value);
                         setShowMap(false);
                       }}
+                      list="order-locations-b"
                       placeholder="Наименование места разгрузки, адрес"
                       className={cls(!!errors.pointB) + " pl-10"}
                     />
+                    <SuggestionList id="order-locations-b" values={locationOptions} />
                   </div>
                 </Field>
 
@@ -525,12 +545,12 @@ export function CreateOrderModal({ onClose, onCreated }: CreateOrderModalProps) 
                 {submitting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Создание...
+                    {isEdit ? "Сохранение..." : "Создание..."}
                   </>
                 ) : (
                   <>
                     <Hash className="w-4 h-4" />
-                    Создать заявку
+                    {isEdit ? "Сохранить изменения" : "Создать заявку"}
                   </>
                 )}
               </button>
@@ -556,6 +576,46 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string)
       .catch(reject)
       .finally(() => window.clearTimeout(timeoutId));
   });
+}
+
+function formFromOrder(order: AppOrder): FormState {
+  return {
+    customer: order.customer,
+    from: order.from,
+    to: order.to,
+    material: order.material,
+    volume: order.volume ? String(order.volume) : "",
+    volumeUnit: order.volumeUnit === "м³" ? "m3" : "tons",
+    pointA: order.pointA,
+    pointB: order.pointB,
+    clientRate: order.clientRate ? String(order.clientRate) : "",
+    clientRateUnit: order.clientRateUnit ?? (order.volumeUnit === "м³" ? "м³" : "тонн"),
+    driverRate: order.ratePerTrip ? String(order.ratePerTrip) : "",
+    note: order.note ?? "",
+  };
+}
+
+function dictionaryNames(items: { kind: DictionaryKind; name: string }[], kind: DictionaryKind) {
+  return uniqueStrings(items.filter((item) => item.kind === kind).map((item) => item.name));
+}
+
+function dictionaryLabels(items: { kind: DictionaryKind; name: string; subtitle?: string }[], kind: DictionaryKind) {
+  return uniqueStrings(items
+    .filter((item) => item.kind === kind)
+    .map((item) => item.subtitle ? `${item.name}, ${item.subtitle}` : item.name));
+}
+
+function uniqueStrings(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function SuggestionList({ id, values }: { id: string; values: string[] }) {
+  if (values.length === 0) return null;
+  return (
+    <datalist id={id}>
+      {values.map((value) => <option key={value} value={value} />)}
+    </datalist>
+  );
 }
 
 function Field({

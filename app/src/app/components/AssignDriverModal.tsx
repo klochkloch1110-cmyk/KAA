@@ -39,7 +39,7 @@ interface AssignDriverModalProps {
   drivers?: AppDriver[];
   vehicles?: AppVehicle[];
   onClose: () => void;
-  onAssign: (drivers: AssignedDriver[]) => void;
+  onAssign: (drivers: AssignedDriver[]) => Promise<void> | void;
 }
 
 /* ─── Мок-справочник водителей ─── */
@@ -105,6 +105,7 @@ export function AssignDriverModal({ order, existingDrivers, drivers = [], vehicl
   const [search, setSearch] = useState("");
   const [filterFree, setFilterFree] = useState(false);
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const roster = buildDriverRoster(drivers, vehicles);
   const driverRoster = roster.length > 0 ? roster : DRIVER_ROSTER;
 
@@ -173,7 +174,7 @@ export function AssignDriverModal({ order, existingDrivers, drivers = [], vehicl
     setEditingVehicle(null);
   }
 
-  function handleConfirm() {
+  async function handleConfirm() {
     const unavailable = Array.from(selected.keys()).map((id) => {
       const rec = driverRoster.find((d) => d.id === id)!;
       const override = selected.get(id) ?? "";
@@ -198,7 +199,15 @@ export function AssignDriverModal({ order, existingDrivers, drivers = [], vehicl
         phone: rec.phone,
       };
     });
-    onAssign(drivers);
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await onAssign(drivers);
+    } catch (assignError) {
+      setError(assignError instanceof Error ? assignError.message : "Не удалось назначить водителя и ТС");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   const selectedCount = selected.size;
@@ -463,11 +472,13 @@ export function AssignDriverModal({ order, existingDrivers, drivers = [], vehicl
 
           <button
             onClick={handleConfirm}
-            disabled={selectedCount === 0}
+            disabled={selectedCount === 0 || isSubmitting}
             className="w-full py-3.5 bg-primary text-primary-foreground rounded-xl font-bold text-base hover:opacity-90 transition-all shadow-md disabled:opacity-40 flex items-center justify-center gap-2"
           >
-            <UserCheck className="w-5 h-5" />
-            {selectedCount === 0
+            {isSubmitting ? <Clock className="w-5 h-5 animate-spin" /> : <UserCheck className="w-5 h-5" />}
+            {isSubmitting
+              ? "Сохраняем назначение..."
+              : selectedCount === 0
               ? "Выберите водителя"
               : selectedCount === 1
               ? "Назначить водителя"

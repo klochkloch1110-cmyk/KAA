@@ -29,17 +29,19 @@ export function getCurrentDriverTrips(trips: AppTrip[], driverName: string, driv
 export function findDriverVehicle(
   vehicles: AppVehicle[],
   currentShift: AppShift | undefined,
-  _orders: AppOrder[],
+  orders: AppOrder[],
   driverName: string,
   driverId?: string,
 ): DriverVehicleInfo | null {
-  void driverName;
-  void driverId;
+  const assignedDriver = orders
+    .flatMap((order) => order.drivers)
+    .find((driver) => isCurrentDriverRecord(driver, driverName, driverId));
 
-  if (!currentShift || currentShift.vehicle === "ТС") return null;
+  const vehicleId = currentShift?.vehicleId ?? assignedDriver?.vehicleId;
+  const plate = currentShift?.vehicle !== "ТС" ? currentShift?.vehicle : assignedDriver?.vehicle;
 
-  const vehicleId = currentShift.vehicleId;
-  const plate = currentShift.vehicle;
+  if (!vehicleId && !plate) return null;
+
   const vehicle = vehicles.find((item) => (
     (vehicleId && item.id === vehicleId) ||
     (plate && samePlate(item.plate, plate))
@@ -50,8 +52,8 @@ export function findDriverVehicle(
 
   return {
     plate: vehicle?.plate ?? plate ?? "—",
-    model: [vehicle?.brand, vehicle?.model].filter(Boolean).join(" ") || "—",
-    mileage: vehicle?.currentOdometer ?? currentShift.mileageStart ?? null,
+    model: [vehicle?.brand, vehicle?.model].filter(Boolean).join(" ") || assignedDriver?.vehicleType || "—",
+    mileage: vehicle?.currentOdometer ?? currentShift?.mileageStart ?? null,
   };
 }
 

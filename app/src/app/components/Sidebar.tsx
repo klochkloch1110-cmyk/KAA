@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, FileText, Route, Clock, FileImage,
   ScanText, Truck, Users, DollarSign, Fuel, Wrench,
-  Wallet, BarChart3, MessageSquare, Settings, X,
+  Wallet, BarChart3, MessageSquare, Settings, X, BookOpen,
 } from "lucide-react";
 
 const menuItems = [
@@ -13,6 +13,7 @@ const menuItems = [
   { icon: ScanText,        label: "OCR",               id: "ocr"       },
   { icon: Truck,           label: "Автопарк",          id: "vehicles"  },
   { icon: Users,           label: "Водители",          id: "drivers"   },
+  { icon: BookOpen,        label: "Справочники",       id: "directories" },
   { icon: DollarSign,      label: "Расходы",           id: "expenses"  },
   { icon: Fuel,            label: "Топливо",           id: "fuel"      },
   { icon: Wrench,          label: "ТО и Ремонт",       id: "maintenance"},
@@ -27,9 +28,10 @@ interface SidebarProps {
   onItemClick: (id: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  allowedItems?: string[];
 }
 
-export function Sidebar({ activeItem, onItemClick, isOpen, onClose }: SidebarProps) {
+export function Sidebar({ activeItem, onItemClick, isOpen, onClose, allowedItems }: SidebarProps) {
 
   function handleClick(id: string) {
     onItemClick(id);
@@ -57,26 +59,27 @@ export function Sidebar({ activeItem, onItemClick, isOpen, onClose }: SidebarPro
           "transition-transform duration-300 ease-in-out",
           isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           /* base */
-          "bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border",
+          "bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border shadow-[18px_0_42px_rgba(35,64,88,0.10)]",
         ].join(" ")}
       >
         {/* Logo */}
         <div
-          className="px-5 py-4 border-b border-sidebar-border flex items-center justify-between"
-          style={{ background: "linear-gradient(135deg, #0a1525 0%, #050810 100%)" }}
+          className="relative px-5 py-4 border-b border-sidebar-border flex items-center justify-between overflow-hidden"
+          style={{ background: "linear-gradient(135deg, #ffffff 0%, #e8f3f8 100%)" }}
         >
+          <div className="absolute inset-x-0 bottom-0 h-px glow-line opacity-70" />
+          <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-accent/20 blur-2xl" />
           <div className="flex items-center gap-3">
-            <div style={{ filter: "drop-shadow(0 0 8px rgba(0,200,212,0.5))" }}>
-              <img src="/logo.png" alt="АВЛ 84" className="w-11 h-11 rounded-lg object-contain" />
+            <div className="relative rounded-2xl border border-primary/20 bg-white p-1.5 shadow-[0_10px_28px_rgba(47,147,215,0.14)]">
+              <img src="/logo.png" alt="2-АА Неруд" className="w-10 h-10 rounded-xl object-cover" />
             </div>
             <div>
               <h1
-                className="font-bold text-lg tracking-widest"
-                style={{ color: "#00c8d4", textShadow: "0 0 10px rgba(0,200,212,0.6)" }}
+                className="font-bold text-lg tracking-wide text-foreground"
               >
-                АВЛ 84
+                2-АА Неруд
               </h1>
-              <p className="text-xs text-sidebar-foreground/50 tracking-wider uppercase">Автопарк</p>
+              <p className="text-xs text-primary/80 tracking-wider uppercase">Управление перевозками</p>
             </div>
           </div>
           {/* Close button — mobile only */}
@@ -90,26 +93,24 @@ export function Sidebar({ activeItem, onItemClick, isOpen, onClose }: SidebarPro
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-3 px-3">
-          <ul className="space-y-0.5">
-            {menuItems.map((item) => {
+          <ul className="space-y-1">
+            {menuItems.filter((item) => !allowedItems || allowedItems.includes(item.id)).map((item) => {
               const Icon = item.icon;
               const isActive = activeItem === item.id;
               return (
                 <li key={item.id}>
                   <button
                     onClick={() => handleClick(item.id)}
-                    style={isActive
-                      ? { boxShadow: "0 0 14px rgba(0,200,212,0.35), inset 0 0 0 1px rgba(0,200,212,0.3)" }
-                      : undefined}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                    className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
                       isActive
-                        ? "bg-sidebar-primary/20 text-primary border border-primary/40 font-semibold"
-                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border border-transparent"
+                        ? "bg-primary/[0.10] text-foreground border border-primary/25 font-semibold shadow-[0_10px_24px_rgba(47,147,215,0.10)]"
+                        : "text-sidebar-foreground/[0.76] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground border border-transparent"
                     }`}
                   >
+                    {isActive && <span className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-primary shadow-[0_0_12px_rgba(47,147,215,0.35)]" />}
                     <Icon
                       className={`w-5 h-5 flex-shrink-0 ${
-                        isActive ? "text-primary drop-shadow-[0_0_6px_rgba(0,200,212,0.8)]" : ""
+                        isActive ? "text-primary" : ""
                       }`}
                     />
                     <span className="truncate">{item.label}</span>
@@ -122,21 +123,21 @@ export function Sidebar({ activeItem, onItemClick, isOpen, onClose }: SidebarPro
 
         {/* User info */}
         <div className="p-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 rounded-2xl border border-sidebar-border bg-secondary/60 p-3">
             <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold tracking-wider flex-shrink-0"
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold tracking-wider flex-shrink-0"
               style={{
-                background: "rgba(0,200,212,0.12)",
-                border: "1px solid rgba(0,200,212,0.35)",
-                color: "#00c8d4",
-                boxShadow: "0 0 8px rgba(0,200,212,0.2)",
+                background: "linear-gradient(135deg, rgba(47,147,215,0.14), rgba(83,184,197,0.12))",
+                border: "1px solid rgba(47,147,215,0.22)",
+                color: "#2f93d7",
+                boxShadow: "0 10px 18px rgba(47,147,215,0.10)",
               }}
             >
               АД
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-sidebar-foreground truncate">Администратор</p>
-              <p className="text-xs text-sidebar-foreground/50 truncate">admin@avl84.ru</p>
+              <p className="text-xs text-sidebar-foreground/60 truncate">admin@2aa-nerud.local</p>
             </div>
           </div>
         </div>

@@ -3,23 +3,15 @@ import {
   X, Truck, Hash, Calendar, Gauge, Weight, ChevronDown,
   CheckCircle2, AlertTriangle, FileText, Loader2, User,
 } from "lucide-react";
+import type { CreateVehicleInput } from "../store/AppStore";
 
 interface CreateVehicleModalProps {
   onClose: () => void;
-  onCreated?: (vehicle: CreatedVehicle) => void;
+  onCreated?: (vehicle: CreatedVehicle) => Promise<void> | void;
 }
 
-export interface CreatedVehicle {
+export interface CreatedVehicle extends CreateVehicleInput {
   id: string;
-  plate: string;
-  brand: string;
-  model: string;
-  type: string;
-  year: number;
-  vin: string;
-  capacity: number;
-  bodyVolume: number | null;
-  assignedDriver: string;
   status: "active";
 }
 
@@ -72,6 +64,7 @@ const EMPTY: Form = {
 export function CreateVehicleModal({ onClose, onCreated }: CreateVehicleModalProps) {
   const [form, setForm] = useState<Form>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [id] = useState(genId);
@@ -96,24 +89,30 @@ export function CreateVehicleModal({ onClose, onCreated }: CreateVehicleModalPro
 
   async function handleSubmit() {
     if (!validate()) return;
+    setSubmitError(null);
     setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setSubmitting(false);
-    setDone(true);
-    onCreated?.({
-      id,
-      plate: form.plate.toUpperCase(),
-      brand: form.brand,
-      model: form.model,
-      type: form.type,
-      year: Number(form.year),
-      vin: form.vin,
-      capacity: Number(form.capacity),
-      bodyVolume: form.bodyVolume ? Number(form.bodyVolume) : null,
-      assignedDriver: form.assignedDriver,
-      status: "active",
-    });
-    setTimeout(onClose, 1600);
+    try {
+      await onCreated?.({
+        id,
+        plate: form.plate.toUpperCase().replace(/\s+/g, " ").trim(),
+        brand: form.brand,
+        model: form.model.trim(),
+        type: form.type,
+        year: Number(form.year),
+        vin: form.vin.trim(),
+        capacity: Number(form.capacity),
+        bodyVolume: form.bodyVolume ? Number(form.bodyVolume) : null,
+        assignedDriver: form.assignedDriver.trim(),
+        note: form.note.trim() || undefined,
+        status: "active",
+      });
+      setDone(true);
+      setTimeout(onClose, 1600);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : "Не удалось добавить ТС");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -148,7 +147,12 @@ export function CreateVehicleModal({ onClose, onCreated }: CreateVehicleModalPro
               <p className="text-sm text-muted-foreground mt-1">{form.brand} {form.model}</p>
             </div>
           ) : (
-            <div className="space-y-5">
+              <div className="space-y-5">
+                {submitError && (
+                  <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                    {submitError}
+                  </div>
+                )}
 
               {/* ── Идентификация ── */}
               <Section icon={<Hash className="w-4 h-4" />} title="Идентификация">

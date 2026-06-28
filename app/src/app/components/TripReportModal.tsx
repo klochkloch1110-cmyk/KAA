@@ -75,6 +75,7 @@ export function TripReportModal({ isOpen, onClose, order, onSubmitted }: TripRep
 
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const activeOrder = order;
 
   function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -91,6 +92,15 @@ export function TripReportModal({ isOpen, onClose, order, onSubmitted }: TripRep
       });
     };
     reader.readAsDataURL(file);
+  }
+
+  function getFirstMissingStep() {
+    const parsedVolume = Number(volume);
+    if (!activeOrder) return "Выберите заявку";
+    if (!ttnNumber.trim()) return "Укажите номер ТТН";
+    if (!volume || !Number.isFinite(parsedVolume) || parsedVolume <= 0) return "Укажите объём";
+    if (!photo) return "Добавьте фото ТТН";
+    return "Можно отправлять";
   }
 
   async function handleSubmit() {
@@ -151,10 +161,9 @@ export function TripReportModal({ isOpen, onClose, order, onSubmitted }: TripRep
 
   const parsedVolume = Number(volume);
   const canSubmit = Boolean(order && ttnNumber.trim() && volume && Number.isFinite(parsedVolume) && parsedVolume > 0 && photo && !submitting);
+  const nextMissingStep = getFirstMissingStep();
 
   if (!isOpen) return null;
-
-  const activeOrder = order;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -380,36 +389,41 @@ export function TripReportModal({ isOpen, onClose, order, onSubmitted }: TripRep
         </div>
 
         {/* ── Footer ── */}
-        <div className="px-5 py-4 border-t border-border bg-muted/20 flex-shrink-0 flex gap-3">
+        <div className="px-5 py-4 border-t border-border bg-muted/20 flex-shrink-0 space-y-3">
           {formError && (
-            <div className="absolute left-5 right-5 bottom-[76px] rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive shadow-lg">
+            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive shadow-lg">
               {formError}
             </div>
           )}
-          <button
-            onClick={handleClose}
-            disabled={submitting}
-            className="px-5 py-3 border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            Отмена
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {submitting ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Отправка...
-              </>
-            ) : (
-              <>
-                <Package className="w-4 h-4" />
-                Отправить отчёт
-              </>
-            )}
-          </button>
+          {!canSubmit && !submitting && (
+            <p className="text-xs text-muted-foreground text-center">Следующее действие: {nextMissingStep}</p>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={handleClose}
+              disabled={submitting}
+              className="px-5 py-3 border border-border rounded-xl text-sm font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              className="flex-1 py-3 bg-primary text-primary-foreground rounded-xl font-semibold hover:opacity-90 transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Отправка...
+                </>
+              ) : (
+                <>
+                  <Package className="w-4 h-4" />
+                  Отправить отчёт
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 

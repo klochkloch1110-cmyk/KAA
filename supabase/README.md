@@ -13,22 +13,25 @@ supabase/
   functions/    Edge Functions
 ```
 
-## Первый технический контур
+## Текущий технический контур
 
-Миграция ядра создает:
+Миграции создают и дополняют:
 
 - пользователей приложения;
 - профили водителей;
 - машины;
 - справочники;
 - заявки;
+- назначения нескольких водителей на одну заявку через `public.order_assignments`;
 - смены;
 - рейсы;
 - документы;
 - OCR-результаты;
+- отчетные таблицы, расходы и управленческую ставку заявки;
 - уведомления;
 - audit log;
-- базовые RLS-политики.
+- RLS-политики для ролей `admin`, `operator`, `driver`;
+- private Storage bucket `documents` для ТТН и связанных файлов.
 
 ## Важное правило
 
@@ -58,7 +61,18 @@ supabase/
 20260527193000_add_admin_rate_per_unit_to_orders.sql
 20260527201000_driver_orders_safe_view.sql
 20260528075000_storage_trip_document_policies.sql
+20260531045000_sync_auth_users_to_public_profiles.sql
+20260531052000_order_assignments_multi_driver.sql
+20260531053000_user_email_and_create_driver_support.sql
+20260613185100_lock_driver_submitted_trips_and_closed_shifts.sql
 ```
+
+Краткое назначение поздних миграций:
+
+- `20260531045000_sync_auth_users_to_public_profiles.sql` - синхронизация Auth-пользователей с `public.users`.
+- `20260531052000_order_assignments_multi_driver.sql` - таблица `order_assignments`, RLS для назначений и видимость заявок назначенным водителям.
+- `20260531053000_user_email_and_create_driver_support.sql` - email в профиле и поддержка создания водителя.
+- `20260613185100_lock_driver_submitted_trips_and_closed_shifts.sql` - запрет редактирования водителем отправленных рейсов/закрытых смен и завершение RLS-адаптации multi-driver для машин и создания рейсов.
 
 После миграций применить:
 
@@ -100,3 +114,11 @@ supabase/tests/rls_smoke_checks.sql
 
 - `driver_rate_per_trip` - ставка водителя за рейс, может отображаться водителю;
 - `admin_rate_per_unit` - управленческая ставка за перевезенную единицу (`ton`/`m3`), используется в отчетах руководителя и не должна показываться водителю.
+
+## RLS-сценарии, которые должны сохраняться
+
+- Водитель видит заявку, если он назначен через legacy-поля `orders.assigned_driver_id` или через `order_assignments`.
+- Водитель может создать рейс только по активной заявке (`assigned`/`in_progress`), своей назначенной машине и открытой смене.
+- Водитель может загрузить и увидеть документы по своему рейсу/смене; Storage-путь ТТН: `trips/{tripId}/ttn/...`.
+- Водитель не может редактировать отправленный рейс: корректировки выполняют `admin`/`operator`.
+- Водитель может закрыть свою открытую смену переводом в `submitted`, но не может править закрытую смену.

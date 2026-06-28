@@ -103,12 +103,16 @@ const PIPELINE: {
    Компонент
 ───────────────────────────────────────────── */
 export function OrdersView() {
-  const { orders, drivers, vehicles, createOrder, assignDrivers, advanceOrderStatus } = useAppStore();
+  const { orders, drivers, vehicles, createOrder, updateOrder, assignDrivers, advanceOrderStatus } = useAppStore();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selected, setSelected] = useState<Order | null>(null);
   const [assignTarget, setAssignTarget] = useState<Order | null>(null);
+  const [editTarget, setEditTarget] = useState<Order | null>(null);
   const [viewMode, setViewMode] = useState<"kanban" | "list">("kanban");
   const [search, setSearch] = useState("");
+  const currentAssignTarget = assignTarget
+    ? orders.find((order) => order.number === assignTarget.number) ?? assignTarget
+    : null;
 
   async function advanceStatus(orderNumber: string) {
     try {
@@ -129,6 +133,12 @@ export function OrdersView() {
     return createOrder(order);
   }
 
+  async function handleUpdate(order: CreatedOrderDraft) {
+    await updateOrder(order);
+    setEditTarget(null);
+    setSelected((current) => current?.number === order.number ? { ...current, ...order, volume: order.volume ?? 0 } : current);
+  }
+
   const filtered = orders.filter((o) => {
     const q = search.toLowerCase();
     return (
@@ -139,22 +149,23 @@ export function OrdersView() {
   });
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-background">
+    <div className="flex-1 flex flex-col overflow-hidden bg-transparent">
 
       {/* ── Шапка ── */}
-      <div className="bg-card border-b border-border px-6 py-4 shrink-0">
+      <div className="metal-panel rounded-2xl px-6 py-5 shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h1 className="text-xl font-bold text-card-foreground">Заявки</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Полный цикл — от создания до архива</p>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-accent/80">Pipeline заказов</div>
+            <h1 className="text-2xl font-bold text-card-foreground">Заявки</h1>
+            <p className="text-sm text-muted-foreground mt-1">Полный цикл — от создания до архива</p>
           </div>
           <div className="flex items-center gap-2">
             {/* Переключатель вид */}
-            <div className="flex rounded-lg border border-border overflow-hidden">
+            <div className="flex rounded-full border border-border bg-secondary/70 p-1">
               <button
                 onClick={() => setViewMode("kanban")}
-                className={`px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium transition-colors ${
-                  viewMode === "kanban" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                className={`px-3 py-1.5 flex items-center gap-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  viewMode === "kanban" ? "bg-primary text-primary-foreground shadow-[0_10px_18px_rgba(47,147,215,0.16)]" : "text-muted-foreground hover:bg-white/80"
                 }`}
               >
                 <Columns className="w-3.5 h-3.5" />
@@ -162,8 +173,8 @@ export function OrdersView() {
               </button>
               <button
                 onClick={() => setViewMode("list")}
-                className={`px-3 py-1.5 flex items-center gap-1.5 text-xs font-medium transition-colors ${
-                  viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                className={`px-3 py-1.5 flex items-center gap-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  viewMode === "list" ? "bg-primary text-primary-foreground shadow-[0_10px_18px_rgba(47,147,215,0.16)]" : "text-muted-foreground hover:bg-white/80"
                 }`}
               >
                 <LayoutGrid className="w-3.5 h-3.5" />
@@ -172,7 +183,7 @@ export function OrdersView() {
             </div>
             <button
               onClick={() => setIsCreateOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity shadow-md"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-primary to-accent text-primary-foreground rounded-full text-sm font-bold hover:opacity-95 transition-opacity shadow-[0_12px_24px_rgba(47,147,215,0.18)]"
             >
               <Plus className="w-4 h-4" />
               Новая заявка
@@ -181,13 +192,13 @@ export function OrdersView() {
         </div>
 
         {/* Поиск */}
-        <div className="relative max-w-sm">
+        <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Заказчик, номер, водитель..."
-            className="w-full pl-9 pr-4 py-2 bg-input-background border border-border rounded-lg text-sm text-card-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all"
+            className="w-full pl-9 pr-4 py-2.5 bg-input-background border border-border rounded-full text-sm text-card-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/35 focus:border-primary/45 outline-none transition-all"
           />
         </div>
 
@@ -197,7 +208,7 @@ export function OrdersView() {
             const count = filtered.filter((o) => o.status === col.status).length;
             return (
               <div key={col.status} className="flex items-center gap-1 shrink-0">
-                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${col.bg} ${col.border}`}>
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border bg-secondary/60 ${col.border}`}>
                   <div className={`w-2 h-2 rounded-full ${col.dot}`} />
                   <span className={`text-xs font-semibold ${col.color}`}>{col.label}</span>
                   <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${col.bg} ${col.color}`}>
@@ -216,13 +227,13 @@ export function OrdersView() {
       {/* ── Kanban / List ── */}
       {viewMode === "kanban" ? (
         <div className="flex-1 overflow-x-auto">
-          <div className="flex gap-4 p-4 h-full min-w-max">
+          <div className="flex gap-4 py-4 h-full min-w-max">
             {PIPELINE.map((col) => {
               const colOrders = filtered.filter((o) => o.status === col.status);
               return (
                 <div key={col.status} className="flex flex-col w-72 shrink-0">
                   {/* Заголовок колонки */}
-                  <div className={`rounded-xl border ${col.border} ${col.bg} px-3 py-2.5 mb-3`}>
+                  <div className={`metal-panel rounded-2xl px-3 py-2.5 mb-3 ${col.border}`}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
                         <div className={`w-2.5 h-2.5 rounded-full ${col.dot}`} />
@@ -245,7 +256,7 @@ export function OrdersView() {
                   <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
                     {colOrders.length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
-                        <div className="w-8 h-8 rounded-full bg-muted mx-auto mb-2 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-secondary mx-auto mb-2 flex items-center justify-center">
                           <FileText className="w-4 h-4" />
                         </div>
                         <p className="text-xs">Нет заявок</p>
@@ -266,7 +277,7 @@ export function OrdersView() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-auto py-4">
           <div className="space-y-2 max-w-4xl mx-auto">
             {filtered.map((order) => {
               const col = PIPELINE.find((c) => c.status === order.status)!;
@@ -274,7 +285,7 @@ export function OrdersView() {
                 <button
                   key={order.number}
                   onClick={() => setSelected(order)}
-                  className="w-full bg-card border border-border rounded-xl px-4 py-3 text-left hover:shadow-md transition-all flex items-center gap-4"
+                  className="w-full metal-panel rounded-2xl px-4 py-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary/30 flex items-center gap-4"
                 >
                   <div className={`w-2 h-10 rounded-full ${col.dot} shrink-0`} />
                   <div className="flex-1 min-w-0 grid grid-cols-4 gap-3 items-center">
@@ -302,7 +313,7 @@ export function OrdersView() {
                       )}
                       {order.status === "in_progress" && (
                         <div className="flex items-center gap-1.5 mt-1">
-                          <div className="flex-1 h-1 bg-muted rounded-full max-w-20">
+                          <div className="flex-1 h-1 bg-secondary rounded-full max-w-20">
                             <div
                               className="h-full bg-primary rounded-full"
                               style={{ width: `${(order.tripsCompleted / order.tripsTotal) * 100}%` }}
@@ -333,6 +344,7 @@ export function OrdersView() {
           onClose={() => setSelected(null)}
           onAdvance={() => advanceStatus(selected.number)}
           onAssign={() => setAssignTarget(selected)}
+          onEdit={() => setEditTarget(selected)}
         />
       )}
 
@@ -343,14 +355,23 @@ export function OrdersView() {
         />
       )}
 
-      {assignTarget && (
+      {editTarget && (
+        <CreateOrderModal
+          mode="edit"
+          initialOrder={orders.find((order) => order.number === editTarget.number) ?? editTarget}
+          onClose={() => setEditTarget(null)}
+          onCreated={handleUpdate}
+        />
+      )}
+
+      {currentAssignTarget && (
         <AssignDriverModal
-          order={assignTarget}
-          existingDrivers={assignTarget.drivers}
+          order={currentAssignTarget}
+          existingDrivers={currentAssignTarget.drivers}
           drivers={drivers}
           vehicles={vehicles}
           onClose={() => setAssignTarget(null)}
-          onAssign={(drivers) => void handleAssign(assignTarget.number, drivers)}
+          onAssign={(drivers) => handleAssign(currentAssignTarget.number, drivers)}
         />
       )}
     </div>
@@ -372,13 +393,13 @@ function KanbanCard({
   return (
     <button
       onClick={onClick}
-      className={`w-full bg-card rounded-xl border ${col.border} text-left p-3 hover:shadow-md transition-all hover:-translate-y-0.5 space-y-2.5`}
+      className={`w-full metal-panel rounded-2xl ${col.border} text-left p-3.5 transition-all hover:-translate-y-0.5 hover:border-primary/30 space-y-2.5`}
     >
       {/* Номер + OCR-предупреждение */}
       <div className="flex items-center justify-between">
         <span className="text-xs font-mono text-primary">{order.number}</span>
         {order.ocrIssue && (
-          <span className="flex items-center gap-1 text-[10px] text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded-full font-semibold">
+          <span className="flex items-center gap-1 text-[10px] text-status-warning bg-status-warning/10 px-1.5 py-0.5 rounded-full font-semibold">
             <AlertTriangle className="w-3 h-3" />
             OCR
           </span>
@@ -429,9 +450,9 @@ function KanbanCard({
             <span className="text-muted-foreground">Рейсы</span>
             <span className="font-semibold text-card-foreground">{order.tripsCompleted} / {order.tripsTotal}</span>
           </div>
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-            <div
-              className="h-full bg-primary rounded-full transition-all"
+        <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
+          <div
+              className="h-full bg-gradient-to-r from-primary to-accent rounded-full transition-all"
               style={{ width: `${progress * 100}%` }}
             />
           </div>
@@ -439,7 +460,7 @@ function KanbanCard({
       )}
 
       {order.status === "completed" && (
-        <div className="flex items-center gap-1.5 text-xs text-green-600">
+        <div className="flex items-center gap-1.5 text-xs text-status-success">
           <CheckCircle2 className="w-3.5 h-3.5" />
           <span className="font-semibold">{order.tripsCompleted} рейсов выполнено</span>
         </div>
@@ -450,17 +471,17 @@ function KanbanCard({
         {order.clientRate != null ? (
           <div className="flex items-center justify-between">
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
-              <TrendingUp className="w-3 h-3 text-green-500" />
+              <TrendingUp className="w-3 h-3 text-status-success" />
               Заказчик
             </span>
-            <span className="text-xs font-bold text-green-600">
+            <span className="text-xs font-bold text-status-success">
               ₽{order.clientRate.toLocaleString("ru-RU")}/{order.clientRateUnit}
             </span>
           </div>
         ) : null}
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Truck className="w-3 h-3 text-blue-400" />
+              <Truck className="w-3 h-3 text-primary" />
             Водитель
           </span>
           <span className="text-xs font-semibold text-muted-foreground">
@@ -476,12 +497,13 @@ function KanbanCard({
    Детальная панель (slide-in справа)
 ───────────────────────────────────────────── */
 function DetailPanel({
-  order, onClose, onAdvance, onAssign,
+  order, onClose, onAdvance, onAssign, onEdit,
 }: {
   order: Order;
   onClose: () => void;
   onAdvance: () => Promise<void> | void;
   onAssign: () => void;
+  onEdit: () => void;
 }) {
   const col = PIPELINE.find((c) => c.status === order.status)!;
   const nextCol = PIPELINE.find((c) => c.status === col.nextStatus);
@@ -740,7 +762,7 @@ function DetailPanel({
               {order.status === "completed" && <><Archive className="w-4 h-4" /> Архивировать</>}
             </button>
           )}
-          <button className="w-full py-2.5 border border-border rounded-xl text-sm font-medium text-card-foreground hover:bg-muted transition-colors flex items-center justify-center gap-2">
+          <button onClick={onEdit} className="w-full py-2.5 border border-border rounded-xl text-sm font-medium text-card-foreground hover:bg-muted transition-colors flex items-center justify-center gap-2">
             <Edit2 className="w-4 h-4" />
             Редактировать
           </button>

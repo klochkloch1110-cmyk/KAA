@@ -1,6 +1,6 @@
 import { appEnv } from "../config/env";
 import { getSupabaseClient } from "../services/supabaseClient";
-import type { AppDocument, AppDriver, AppOrder, AppShift, AppTrip, AppVehicle, AssignedDriver, CloseShiftInput, CreateDriverInput, CreateOrderInput, OpenShiftInput, SubmitTripInput } from "../store/AppStore";
+import type { AppDictionaryItem, AppDocument, AppDriver, AppOrder, AppShift, AppTrip, AppVehicle, AssignedDriver, CloseShiftInput, CreateDictionaryItemInput, CreateDriverInput, CreateOrderInput, CreateVehicleInput, OpenShiftInput, SubmitTripInput, UpdateOrderInput } from "../store/AppStore";
 
 export interface OperationsRepository {
   mode: "mock" | "supabase";
@@ -10,8 +10,12 @@ export interface OperationsRepository {
   listShifts: () => Promise<AppShift[]>;
   listDrivers: () => Promise<AppDriver[]>;
   listVehicles: () => Promise<AppVehicle[]>;
+  listDictionaries: () => Promise<AppDictionaryItem[]>;
   createOrder: (order: CreateOrderInput) => Promise<void>;
+  updateOrder: (order: UpdateOrderInput) => Promise<void>;
   createDriver: (driver: CreateDriverInput) => Promise<void>;
+  createVehicle: (vehicle: CreateVehicleInput) => Promise<void>;
+  createDictionaryItem: (item: CreateDictionaryItemInput) => Promise<void>;
   assignDrivers: (orderNumber: string, drivers: AssignedDriver[]) => Promise<void>;
   updateOrderStatus: (orderNumber: string, status: AppOrder["status"]) => Promise<void>;
   openShift: (input: OpenShiftInput) => Promise<void>;
@@ -45,8 +49,14 @@ function createMockOperationsRepository(): OperationsRepository {
     async listVehicles() {
       return [];
     },
+    async listDictionaries() {
+      return [];
+    },
     async createOrder() {},
+    async updateOrder() {},
     async createDriver() {},
+    async createVehicle() {},
+    async createDictionaryItem() {},
     async assignDrivers() {},
     async updateOrderStatus() {},
     async openShift() {},
@@ -211,6 +221,25 @@ function createSupabaseOperationsRepository(): OperationsRepository {
       if (error) throw new Error(error.message);
       return (data ?? []).map(mapVehicleRow);
     },
+    async listDictionaries() {
+      const supabase = await requireSupabaseClient();
+      const [customers, organizations, materials, locations] = await Promise.all([
+        supabase.from("customers").select("id,name,inn,contact_person,phone").order("name", { ascending: true }),
+        supabase.from("organizations").select("id,name,type,address").order("name", { ascending: true }),
+        supabase.from("materials").select("id,name,unit,is_active").order("name", { ascending: true }),
+        supabase.from("locations").select("id,name,address").order("name", { ascending: true }),
+      ]);
+
+      const firstError = [customers.error, organizations.error, materials.error, locations.error].find(Boolean);
+      if (firstError) throw new Error(firstError.message);
+
+      return [
+        ...(customers.data ?? []).map(mapCustomerDictionaryRow),
+        ...(organizations.data ?? []).map(mapOrganizationDictionaryRow),
+        ...(materials.data ?? []).map(mapMaterialDictionaryRow),
+        ...(locations.data ?? []).map(mapLocationDictionaryRow),
+      ];
+    },
     async createOrder(order) {
       const supabase = await requireSupabaseClient();
       const { data: authData, error: authError } = await supabase.auth.getUser();
@@ -260,9 +289,136 @@ function createSupabaseOperationsRepository(): OperationsRepository {
         },
       });
     },
+    async updateOrder(order) {
+      const supabase = await requireSupabaseClient();
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw new Error(authError.message);
+      const userId = authData.user?.id;
+      if (!userId) throw new Error("Для редактирования заявки нужно войти в Supabase");
+
+      const volumeUnit = order.volumeUnit === "м³" ? "m3" : "ton";
+      const [customer, sourceOrg, destinationOrg, material, pickup, dropoff] = await Promise.all([
+        getOrCreateCustomer(supabase, order.customer),
+        getOrCreateOrganization(supabase, order.from, "source"),
+        getOrCreateOrganization(supabase, order.to, "destination"),
+        getOrCreateMaterial(supabase, order.material, volumeUnit),
+        getOrCreateLocation(supabase, order.pointA),
+        getOrCreateLocation(supabase, order.pointB),
+      ]);
+
+      const { data: updatedOrder, error } = await supabase.from("orders").update({
+        order_date: parseRuDate(order.date),
+        customer_id: customer.id,
+        source_org_id: sourceOrg.id,
+        destination_org_id: destinationOrg.id,
+        material_id: material.id,
+        total_volume_planned: order.volume ?? null,
+        volume_unit: volumeUnit,
+        pickup_location_id: pickup.id,
+        dropoff_location_id: dropoff.id,
+        driver_rate_per_trip: order.ratePerTrip,
+        admin_rate_per_unit: order.clientRate ?? null,
+        notes: order.note ?? null,
+      }).eq("order_number", order.number).select("id").single();
+
+      if (error) throw new Error(error.message);
+      await insertAuditLog(supabase, {
+        userId,
+        action: "order.update",
+        entityType: "order",
+        entityId: updatedOrder.id,
+        newData: {
+          order_number: order.number,
+          customer: order.customer,
+          total_volume_planned: order.volume ?? null,
+        },
+      });
+    },
     async createDriver(driver) {
       const supabase = await requireSupabaseClient();
       const { error } = await supabase.functions.invoke("create-driver", { body: driver });
+      if (error) throw new Error(error.message);
+    },
+    async createVehicle(vehicle) {
+      const supabase = await requireSupabaseClient();
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) throw new Error(authError.message);
+      const userId = authData.user?.id;
+      if (!userId) throw new Error("Для создания ТС нужно войти в Supabase");
+
+      const plateNumber = normalizePlate(vehicle.plate);
+      const { data: existing, error: existingError } = await supabase
+        .from("vehicles")
+        .select("id")
+        .eq("plate_number", plateNumber)
+        .maybeSingle();
+      if (existingError) throw new Error(existingError.message);
+      if (existing) throw new Error(`ТС с госномером ${plateNumber} уже есть в системе`);
+
+      const notes = buildVehicleNotes(vehicle);
+      const { data: insertedVehicle, error } = await supabase.from("vehicles").insert({
+        brand: vehicle.brand.trim(),
+        model: vehicle.model.trim() || null,
+        plate_number: plateNumber,
+        vin: vehicle.vin.trim() || null,
+        current_odometer: vehicle.currentOdometer ?? 0,
+        status: "active",
+        notes,
+      }).select("id").single();
+
+      if (error) throw new Error(error.message);
+      await insertAuditLog(supabase, {
+        userId,
+        action: "vehicle.create",
+        entityType: "vehicle",
+        entityId: insertedVehicle.id,
+        newData: {
+          plate_number: plateNumber,
+          brand: vehicle.brand,
+          model: vehicle.model,
+          status: "active",
+        },
+      });
+    },
+    async createDictionaryItem(item) {
+      const supabase = await requireSupabaseClient();
+      const role = await getCurrentUserRole(supabase);
+      if (!isStaffRole(role)) {
+        throw new Error("Редактировать справочники может только руководитель или оператор");
+      }
+
+      const name = item.name.trim();
+      if (!name) throw new Error("Укажите название элемента справочника");
+
+      if (item.kind === "customers") {
+        await ensureDictionaryNameIsUnique(supabase, "customers", name);
+        const { error } = await supabase.from("customers").insert({ name, notes: item.subtitle?.trim() || null });
+        if (error) throw new Error(error.message);
+        return;
+      }
+
+      if (item.kind === "organizations") {
+        await ensureDictionaryNameIsUnique(supabase, "organizations", name);
+        const { error } = await supabase.from("organizations").insert({
+          name,
+          type: "universal",
+          address: item.subtitle?.trim() || null,
+        });
+        if (error) throw new Error(error.message);
+        return;
+      }
+
+      if (item.kind === "materials") {
+        await ensureDictionaryNameIsUnique(supabase, "materials", name);
+        const unit = item.subtitle?.includes("м³") ? "m3" : "ton";
+        const { error } = await supabase.from("materials").insert({ name, unit, is_active: true });
+        if (error) throw new Error(error.message);
+        return;
+      }
+
+      await ensureDictionaryNameIsUnique(supabase, "locations", name);
+      const address = item.subtitle?.trim() || name;
+      const { error } = await supabase.from("locations").insert({ name, address });
       if (error) throw new Error(error.message);
     },
     async assignDrivers(orderNumber, drivers) {
@@ -384,6 +540,11 @@ function createSupabaseOperationsRepository(): OperationsRepository {
     async updateShiftStatus(shiftId, status) {
       const supabase = await requireSupabaseClient();
       const { data: authData } = await supabase.auth.getUser();
+      const role = await getCurrentUserRole(supabase);
+      if (!isStaffRole(role)) {
+        throw new Error("Изменять статус закрытой смены может только руководитель или оператор");
+      }
+
       const { data: shift, error: shiftError } = await supabase
         .from("shifts")
         .select("id,status")
@@ -464,6 +625,10 @@ function createSupabaseOperationsRepository(): OperationsRepository {
         .eq("order_number", trip.orderNumber)
         .single();
       if (orderError) throw new Error(orderError.message);
+      if (!["assigned", "in_progress"].includes(order.status)) {
+        throw new Error("Рейсовый отчёт можно отправить только по активной назначенной заявке");
+      }
+
       const { data: assignment, error: assignmentError } = await supabase
         .from("order_assignments")
         .select("vehicle_id")
@@ -601,7 +766,8 @@ function createSupabaseOperationsRepository(): OperationsRepository {
           total_volume_cached: totalVolume,
           total_earnings_cached: totalEarnings,
         })
-        .eq("id", shift.id);
+        .eq("id", shift.id)
+        .eq("status", "open");
       if (updateError) throw new Error(updateError.message);
       await insertAuditLog(supabase, {
         userId,
@@ -638,6 +804,25 @@ async function requireSupabaseClient() {
   const supabase = await getSupabaseClient();
   if (!supabase) throw new Error("Supabase не настроен");
   return supabase;
+}
+
+async function getCurrentUserRole(supabase: any): Promise<string | null> {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError) throw new Error(authError.message);
+  const userId = authData.user?.id;
+  if (!userId) return null;
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", userId)
+    .single();
+  if (error) throw new Error(error.message);
+  return data?.role ?? null;
+}
+
+function isStaffRole(role: string | null) {
+  return role === "admin" || role === "operator";
 }
 
 async function insertAuditLog(
@@ -828,6 +1013,43 @@ function mapVehicleRow(row: any): AppVehicle {
   };
 }
 
+function mapCustomerDictionaryRow(row: any): AppDictionaryItem {
+  return {
+    id: String(row.id),
+    kind: "customers",
+    name: row.name,
+    subtitle: [row.inn ? `ИНН ${row.inn}` : null, row.contact_person, row.phone].filter(Boolean).join(" · ") || undefined,
+  };
+}
+
+function mapOrganizationDictionaryRow(row: any): AppDictionaryItem {
+  return {
+    id: String(row.id),
+    kind: "organizations",
+    name: row.name,
+    subtitle: [organizationTypeLabel(row.type), row.address].filter(Boolean).join(" · ") || undefined,
+  };
+}
+
+function mapMaterialDictionaryRow(row: any): AppDictionaryItem {
+  return {
+    id: String(row.id),
+    kind: "materials",
+    name: row.name,
+    subtitle: row.unit === "m3" ? "м³" : "тонн",
+    isActive: Boolean(row.is_active),
+  };
+}
+
+function mapLocationDictionaryRow(row: any): AppDictionaryItem {
+  return {
+    id: String(row.id),
+    kind: "locations",
+    name: row.name,
+    subtitle: row.address,
+  };
+}
+
 async function getOrCreateCustomer(supabase: any, name: string) {
   const trimmed = name.trim();
   const { data: existing, error: selectError } = await supabase
@@ -908,6 +1130,18 @@ async function getOrCreateLocation(supabase: any, address: string) {
   return data;
 }
 
+async function ensureDictionaryNameIsUnique(supabase: any, table: string, name: string): Promise<void> {
+  const { data, error } = await supabase
+    .from(table)
+    .select("id")
+    .eq("name", name)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (data) throw new Error(`Значение «${name}» уже есть в справочнике`);
+}
+
 async function findDriverIdByName(supabase: any, name: string): Promise<string | null> {
   const { data, error } = await supabase
     .from("users")
@@ -958,6 +1192,37 @@ function vehicleStatusLabel(status?: string | null): string {
     default:
       return status || "статус не указан";
   }
+}
+
+function organizationTypeLabel(type?: string | null): string {
+  switch (type) {
+    case "source":
+      return "Отправитель";
+    case "destination":
+      return "Получатель";
+    case "universal":
+      return "Универсальная";
+    default:
+      return "Организация";
+  }
+}
+
+function normalizePlate(value: string) {
+  return value.toUpperCase().replace(/\s+/g, " ").trim();
+}
+
+function buildVehicleNotes(vehicle: CreateVehicleInput) {
+  const parts = [
+    `Тип: ${vehicle.type}`,
+    `Год: ${vehicle.year}`,
+    `Грузоподъёмность: ${vehicle.capacity} т`,
+  ];
+
+  if (vehicle.bodyVolume !== null) parts.push(`Объём кузова: ${vehicle.bodyVolume} м³`);
+  if (vehicle.assignedDriver.trim()) parts.push(`Закреплённый водитель: ${vehicle.assignedDriver.trim()}`);
+  if (vehicle.note?.trim()) parts.push(vehicle.note.trim());
+
+  return parts.join("\n");
 }
 
 async function getOrCreateOpenShift(supabase: any, userId: string, vehicleId: string): Promise<string> {

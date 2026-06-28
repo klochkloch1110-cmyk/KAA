@@ -108,7 +108,7 @@ const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
 type Tab = "drivers" | "vehicles";
 
 export function DriversView() {
-  const { dataMode, drivers: supabaseDrivers, vehicles: supabaseVehicles, createDriver } = useAppStore();
+  const { dataMode, drivers: supabaseDrivers, vehicles: supabaseVehicles, createDriver, createVehicle } = useAppStore();
   const [tab, setTab] = useState<Tab>("drivers");
   const [drivers, setDrivers] = useState<Driver[]>(MOCK_DRIVERS);
   const [vehicles, setVehicles] = useState<Vehicle[]>(MOCK_VEHICLES);
@@ -146,7 +146,23 @@ export function DriversView() {
     ]);
   }
 
-  function handleVehicleCreated(v: CreatedVehicle) {
+  async function handleVehicleCreated(v: CreatedVehicle) {
+    if (dataMode === "supabase") {
+      await createVehicle({
+        plate: v.plate,
+        brand: v.brand,
+        model: v.model,
+        type: v.type,
+        year: v.year,
+        vin: v.vin,
+        capacity: v.capacity,
+        bodyVolume: v.bodyVolume,
+        assignedDriver: v.assignedDriver,
+        note: v.note,
+      });
+      return;
+    }
+
     setVehicles((prev) => [
       {
         id: v.id, plate: v.plate, brand: v.brand, model: v.model,

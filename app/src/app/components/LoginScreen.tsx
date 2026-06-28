@@ -4,7 +4,7 @@ import { useAuth } from "../auth/AuthProvider";
 
 export function LoginScreen() {
   const { authMode, error, isLoading, signIn, signInAsMockRole } = useAuth();
-  const [email, setEmail] = useState("admin@avl84.local");
+  const [email, setEmail] = useState("admin@2aa-nerud.local");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
 
@@ -23,16 +23,16 @@ export function LoginScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B0E14] text-foreground flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(42,133,255,0.18),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(0,230,118,0.08),transparent_30%)]" />
+    <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(83,184,197,0.22),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(47,147,215,0.14),transparent_30%)]" />
       <div className="relative w-full max-w-md">
-        <form onSubmit={handleSubmit} className="rounded-3xl p-6 md:p-8 border border-border bg-[#111521]/95 backdrop-blur-xl shadow-2xl">
+        <form onSubmit={handleSubmit} className="metal-panel rounded-3xl p-6 md:p-8 backdrop-blur-xl">
           <div className="inline-flex items-center gap-3 mb-8">
-            <div className="w-11 h-11 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center shadow-[0_0_24px_rgba(42,133,255,0.25)]">
-              <span className="text-primary font-black text-xl">А</span>
+            <div className="w-12 h-12 rounded-2xl bg-white border border-primary/20 flex items-center justify-center shadow-[0_12px_24px_rgba(47,147,215,0.14)] overflow-hidden">
+              <img src="/logo.png" alt="2-АА Неруд" className="h-full w-full object-cover" />
             </div>
             <div>
-              <p className="text-xl font-black tracking-wide">АВЛ 84</p>
+              <p className="text-xl font-black tracking-wide">2-АА Неруд</p>
               <p className="text-xs text-muted-foreground">Управление перевозками</p>
             </div>
           </div>
@@ -55,8 +55,8 @@ export function LoginScreen() {
                 <input
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setLocalError(""); }}
-                  className="w-full bg-[#151822] border border-border rounded-xl pl-10 pr-4 py-3 outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
-                  placeholder="admin@avl84.local"
+                  className="w-full bg-input-background border border-border rounded-xl pl-10 pr-4 py-3 outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
+                  placeholder="admin@2aa-nerud.local"
                   type="email"
                 />
               </div>
@@ -69,7 +69,7 @@ export function LoginScreen() {
                 <input
                   value={password}
                   onChange={(e) => { setPassword(e.target.value); setLocalError(""); }}
-                  className="w-full bg-[#151822] border border-border rounded-xl pl-10 pr-4 py-3 outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
+                  className="w-full bg-input-background border border-border rounded-xl pl-10 pr-4 py-3 outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
                   placeholder={authMode === "mock" ? "в mock-режиме можно оставить пустым" : "пароль Supabase"}
                   type="password"
                 />
@@ -95,10 +95,10 @@ export function LoginScreen() {
             <div className="mt-6 pt-6 border-t border-border">
               <p className="text-xs text-muted-foreground mb-3">Быстрый вход для разработки</p>
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => signInAsMockRole("admin")} className="rounded-xl border border-border bg-white/[0.03] py-3 text-sm font-semibold hover:bg-white/[0.06] transition-colors">
+                <button type="button" onClick={() => signInAsMockRole("admin")} className="rounded-xl border border-border bg-secondary/60 py-3 text-sm font-semibold hover:bg-secondary transition-colors">
                   Руководитель
                 </button>
-                <button type="button" onClick={() => signInAsMockRole("driver")} className="rounded-xl border border-border bg-white/[0.03] py-3 text-sm font-semibold hover:bg-white/[0.06] transition-colors">
+                <button type="button" onClick={() => signInAsMockRole("driver")} className="rounded-xl border border-border bg-secondary/60 py-3 text-sm font-semibold hover:bg-secondary transition-colors">
                   Водитель
                 </button>
               </div>

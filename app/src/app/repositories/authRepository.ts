@@ -33,7 +33,7 @@ const mockUsers: Record<AppRole, AuthUser> = {
   operator: {
     id: "mock-operator",
     email: "operator@avl84.local",
-    fullName: "Оператор AVL 84",
+    fullName: "Оператор 2-АА Неруд",
     role: "operator",
   },
   driver: {
